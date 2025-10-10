@@ -34,7 +34,7 @@ public class AuthController {
 
     // 2. 로그인 API
     @PostMapping("/login")
-    @Operation(summary = "로그인", description = "로그인을 진행합니다.")
+    @Operation(summary = "로그인", description = "로그인 합니다.")
     public ApiResponse<UserResponseDTO.LoginResultDTO> login(@Valid @RequestBody UserRequestDTO.LoginDTO request) {
         String token = authService.login(request);
         return ApiResponse.onSuccess(UserConverter.toLoginResultDTO(token));
@@ -52,6 +52,7 @@ public class AuthController {
 
     // 4. 로그아웃 API
     @PostMapping("/logout")
+    @Operation(summary = "로그아웃", description = "로그아웃 합니다.")
     public ApiResponse<String> logout() {
         // Stateless JWT 방식에서는 서버에서 토큰을 직접 무효화하기 어렵습니다.
         // 클라이언트 측에서 토큰을 삭제하는 방식으로 로그아웃을 구현합니다.

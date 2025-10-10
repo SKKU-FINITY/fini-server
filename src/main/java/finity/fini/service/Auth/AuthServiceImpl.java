@@ -1,5 +1,7 @@
 package finity.fini.service.Auth;
 
+import finity.fini.apiPayload.code.status.ErrorStatus;
+import finity.fini.apiPayload.exception.handler.AuthHandler;
 import finity.fini.config.security.jwt.JwtUtil;
 import finity.fini.converter.UserConverter;
 import finity.fini.domain.User;
@@ -23,8 +25,9 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public User register(UserRequestDTO.RegisterDTO request) {
+        // 아이디 중복 확인
         if (userRepository.existsByUsername(request.getUsername())) {
-            throw new IllegalArgumentException("이미 사용 중인 아이디입니다.");
+            throw new AuthHandler(ErrorStatus.USERNAME_ALREADY_EXISTS);
         }
 
         String encodedPassword = passwordEncoder.encode(request.getPassword());
@@ -36,10 +39,10 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public String login(UserRequestDTO.LoginDTO request) {
         User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 아이디입니다."));
+                .orElseThrow(() -> new AuthHandler(ErrorStatus.LOGIN_FAILED));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new IllegalArgumentException("잘못된 비밀번호입니다.");
+            throw new AuthHandler(ErrorStatus.LOGIN_FAILED);
         }
 
         return jwtUtil.createToken(user.getUsername());
@@ -48,7 +51,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public UserResponseDTO.MeResultDTO getMe(String username) {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new AuthHandler(ErrorStatus.USER_NOT_FOUND));
         return UserConverter.toMeResultDTO(user);
     }
 }
