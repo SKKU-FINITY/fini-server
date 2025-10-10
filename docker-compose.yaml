@@ -1,0 +1,20 @@
+version: '3.8'
+
+networks:
+  fini-network:
+    driver: bridge
+    name: fini-network
+
+services:
+  fini-server:
+    image: ysjjw2003/fini:${TAG}
+    environment:
+      - TZ=Asia/Seoul
+    container_name: fini-server
+    ports: # 외부까지 연결 / expose : 컨테이너끼리만 연결
+      - "8080:8080"
+#    env_file:
+#      - .env
+    networks:
+      - fini-network
+    restart: always # 컨테이너가 종료되면 항상 재시작
