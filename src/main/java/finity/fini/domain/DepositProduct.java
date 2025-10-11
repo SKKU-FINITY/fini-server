@@ -1,0 +1,59 @@
+package finity.fini.domain;
+
+import finity.fini.domain.common.BaseEntity;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Getter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@Table(uniqueConstraints = {
+        @UniqueConstraint(
+                name = "uk_deposit_product",
+                columnNames = {"fin_co_no", "fin_prdt_cd"}
+        )
+})
+public class DepositProduct extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long depositProductId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "bank_id")
+    private Bank bank;
+
+    @Column(name = "fin_co_no")
+    private String finCoNo;
+
+    @Column(name = "fin_prdt_cd")
+    private String finPrdtCd;
+
+    private String finPrdtNm;
+
+    private String joinWay;
+
+    @Column(columnDefinition = "TEXT")
+    private String mtrtInt;
+
+    @Column(columnDefinition = "TEXT")
+    private String spclCnd;
+
+    private String joinDeny;
+
+    private String joinMember;
+
+    @Column(columnDefinition = "TEXT")
+    private String etcNote;
+
+    private Long maxLimit;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "depositProduct", cascade = CascadeType.ALL)
+    private List<DepositOption> depositOptions = new ArrayList<>();
+}

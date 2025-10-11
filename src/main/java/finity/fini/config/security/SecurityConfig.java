@@ -31,11 +31,16 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+
+                        // 🔓 [개발 단계] 전체 API 허용 (Swagger 포함)
+                        .anyRequest().permitAll()
+
                         // 기존에 허용된 경로
-                        .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
-                        // Swagger UI와 API 문서를 위한 경로 허용
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        .anyRequest().authenticated()
+                        // 🔒 [배포 단계] 인증 적용 설정 (필요한 경로만 허용)
+//                        .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
+//                        // Swagger UI와 API 문서를 위한 경로 허용
+//                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+//                        .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
