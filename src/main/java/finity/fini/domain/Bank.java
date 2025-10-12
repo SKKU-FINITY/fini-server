@@ -20,6 +20,11 @@ public class Bank extends BaseEntity {
 
     private String korCoNm; // 금융회사 명
     private String dclsMonth; // 공시 제출월
+    private String hompUrl; // 홈페이지 주소
+    private String calTel; // 대표 전화번호
+
+    @Column(length = 500)
+    private String dclsChrgMan; // 담당자 정보
 
     @Builder.Default
     @OneToMany(mappedBy = "bank", cascade = CascadeType.ALL)
