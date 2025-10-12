@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/products")
 @RequiredArgsConstructor
@@ -33,15 +35,13 @@ public class ProductController {
             @Parameter(name = "bankCodes", description = "은행 고유 코드 목록 (쉼표로 구분)"),
             @Parameter(name = "term", description = "저축 희망 기간 (개월 단위)"),
             @Parameter(name = "mtrtCondition", description = "만기 후 이자율 조건 검색어"),
-            @Parameter(name = "page", description = "페이지 번호 (0부터 시작)")
     })
-    public ApiResponse<Page<ProductResponseDTO.ProductListDTO>> getSavingProducts(
+    public ApiResponse<List<ProductResponseDTO.ProductListDTO>> getSavingProducts(
             @RequestParam(required = false) String bankCodes,
             @RequestParam(required = false) Integer term,
-            @RequestParam(required = false) String mtrtCondition,
-            @RequestParam(defaultValue = "0") int page) {
+            @RequestParam(required = false) String mtrtCondition) {
 
-        Page<ProductResponseDTO.ProductListDTO> productList = productService.findSavingProducts(bankCodes, term, mtrtCondition, page);
+        List<ProductResponseDTO.ProductListDTO> productList = productService.findSavingProducts(bankCodes, term, mtrtCondition);
         return ApiResponse.onSuccess(productList);
     }
 
@@ -51,15 +51,13 @@ public class ProductController {
             @Parameter(name = "bankCodes", description = "은행 고유 코드 목록 (쉼표로 구분)"),
             @Parameter(name = "term", description = "저축 희망 기간 (개월 단위)"),
             @Parameter(name = "mtrtCondition", description = "만기 후 이자율 조건 검색어"),
-            @Parameter(name = "page", description = "페이지 번호 (0부터 시작)")
     })
-    public ApiResponse<Page<ProductResponseDTO.ProductListDTO>> getDepositProducts(
+    public ApiResponse<List<ProductResponseDTO.ProductListDTO>> getDepositProducts(
             @RequestParam(required = false) String bankCodes,
             @RequestParam(required = false) Integer term,
-            @RequestParam(required = false) String mtrtCondition,
-            @RequestParam(defaultValue = "0") int page) {
+            @RequestParam(required = false) String mtrtCondition) {
 
-        Page<ProductResponseDTO.ProductListDTO> productList = productService.findDepositProducts(bankCodes, term, mtrtCondition, page);
+        List<ProductResponseDTO.ProductListDTO> productList = productService.findDepositProducts(bankCodes, term, mtrtCondition);
         return ApiResponse.onSuccess(productList);
     }
 

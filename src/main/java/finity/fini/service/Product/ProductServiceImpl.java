@@ -8,6 +8,7 @@ import finity.fini.dto.Product.ProductResponseDTO;
 import finity.fini.repository.BankRepository;
 import finity.fini.repository.DepositProductRepository;
 import finity.fini.repository.SavingProductRepository;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -161,17 +162,22 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public Page<ProductResponseDTO.ProductListDTO> findSavingProducts(String bankCodes, Integer term, String mtrtCondition, int page) {
-        Pageable pageable = PageRequest.of(page, 10); // 페이지당 10개
+    public List<ProductResponseDTO.ProductListDTO> findSavingProducts(String bankCodes, Integer term, String mtrtCondition) {
         Specification<SavingProduct> spec = (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
+
+            // N+1 문제 해결을 위한 Fetch Join 추가
+            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+                root.fetch("savingOptions", JoinType.LEFT);
+            }
 
             if (StringUtils.hasText(bankCodes)) {
                 List<String> bankCodeList = Arrays.asList(bankCodes.split(","));
                 predicates.add(root.get("bank").get("finCoNo").in(bankCodeList));
             }
             if (term != null) {
-                predicates.add(criteriaBuilder.equal(root.join("savingOptions").get("saveTrm"), term));
+                // JOIN을 이미 했으므로 root.join 대신 root.get을 사용할 수 있습니다.
+                predicates.add(criteriaBuilder.equal(root.get("savingOptions").get("saveTrm"), term));
             }
             if (StringUtils.hasText(mtrtCondition)) {
                 predicates.add(criteriaBuilder.like(root.get("mtrtInt"), "%" + mtrtCondition + "%"));
@@ -181,34 +187,58 @@ public class ProductServiceImpl implements ProductService {
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
 
-        Page<SavingProduct> productPage = savingProductRepository.findAll(spec, pageable);
+        List<SavingProduct> productList = savingProductRepository.findAll(spec);
 
-        return productPage.map(product -> {
+        return productList.stream().map(product -> {
+            // 대표 옵션 선택 로직
+            Optional<SavingOption> representativeOption;
+            if (term != null) {
+                // 기간으로 필터링한 경우 해당 기간의 옵션을 찾음
+                representativeOption = product.getSavingOptions().stream()
+                        .filter(opt -> term.equals(opt.getSaveTrm()))
+                        .findFirst();
+            } else {
+                // 필터링이 없는 경우 최고 금리 옵션을 찾음
+                representativeOption = product.getSavingOptions().stream()
+                        .max(Comparator.comparing(SavingOption::getIntrRate2,
+                                Comparator.nullsFirst(Comparator.naturalOrder())));
+            }
+
+            // 상품의 전체 옵션 중 최고 금리 계산
             double maxRate = product.getSavingOptions().stream()
+                    .filter(opt -> opt.getIntrRate2() != null) // **이 필터가 핵심입니다.**
                     .mapToDouble(SavingOption::getIntrRate2)
                     .max()
                     .orElse(0.0);
+
+            // DTO 빌더에 saveTerm과 baseRate 추가
             return ProductResponseDTO.ProductListDTO.builder()
                     .productId(product.getSavingProductId())
                     .bankName(product.getBank().getKorCoNm())
                     .productName(product.getFinPrdtNm())
+                    .saveTerm(representativeOption.map(SavingOption::getSaveTrm).orElse(null))
+                    .baseRate(representativeOption.map(SavingOption::getIntrRate).orElse(null))
                     .maxRate(maxRate)
                     .build();
-        });
+        }).collect(Collectors.toList());
     }
 
     @Override
-    public Page<ProductResponseDTO.ProductListDTO> findDepositProducts(String bankCodes, Integer term, String mtrtCondition, int page) {
-        Pageable pageable = PageRequest.of(page, 10);
+    public List<ProductResponseDTO.ProductListDTO> findDepositProducts(String bankCodes, Integer term, String mtrtCondition) {
         Specification<DepositProduct> spec = (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
+
+            // N+1 문제 해결을 위한 Fetch Join 추가
+            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+                root.fetch("depositOptions", JoinType.LEFT);
+            }
 
             if (StringUtils.hasText(bankCodes)) {
                 List<String> bankCodeList = Arrays.asList(bankCodes.split(","));
                 predicates.add(root.get("bank").get("finCoNo").in(bankCodeList));
             }
             if (term != null) {
-                predicates.add(criteriaBuilder.equal(root.join("depositOptions").get("saveTrm"), term));
+                predicates.add(criteriaBuilder.equal(root.get("depositOptions").get("saveTrm"), term));
             }
             if (StringUtils.hasText(mtrtCondition)) {
                 predicates.add(criteriaBuilder.like(root.get("mtrtInt"), "%" + mtrtCondition + "%"));
@@ -218,20 +248,41 @@ public class ProductServiceImpl implements ProductService {
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
 
-        Page<DepositProduct> productPage = depositProductRepository.findAll(spec, pageable);
+        List<DepositProduct> productList = depositProductRepository.findAll(spec);
 
-        return productPage.map(product -> {
+        return productList.stream().map(product -> {
+            // 대표 옵션 선택 로직
+            Optional<DepositOption> representativeOption;
+            if (term != null) {
+                // 기간으로 필터링한 경우 해당 기간의 옵션을 찾음
+                representativeOption = product.getDepositOptions().stream()
+                        .filter(opt -> term.equals(opt.getSaveTrm()))
+                        .findFirst();
+            } else {
+                // 필터링이 없는 경우 최고 금리 옵션을 찾음
+                representativeOption = product.getDepositOptions().stream()
+                        .max(Comparator.comparing(DepositOption::getIntrRate2,
+                                Comparator.nullsFirst(Comparator.naturalOrder())));
+            }
+
+            // 상품의 전체 옵션 중 최고 금리 계산
             double maxRate = product.getDepositOptions().stream()
+                    .filter(opt -> opt.getIntrRate2() != null) // **이 필터가 핵심입니다.**
                     .mapToDouble(DepositOption::getIntrRate2)
                     .max()
                     .orElse(0.0);
+
+
+            // DTO 빌더에 saveTerm과 baseRate 추가
             return ProductResponseDTO.ProductListDTO.builder()
                     .productId(product.getDepositProductId())
                     .bankName(product.getBank().getKorCoNm())
                     .productName(product.getFinPrdtNm())
+                    .saveTerm(representativeOption.map(DepositOption::getSaveTrm).orElse(null))
+                    .baseRate(representativeOption.map(DepositOption::getIntrRate).orElse(null))
                     .maxRate(maxRate)
                     .build();
-        });
+        }).collect(Collectors.toList());
     }
 
     @Override
