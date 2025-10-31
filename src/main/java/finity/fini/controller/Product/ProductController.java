@@ -30,7 +30,7 @@ public class ProductController {
     }
 
     @GetMapping("/savings")
-    @Operation(summary = "적금 상품 목록 조회 API", description = "필터 조건에 맞는 적금 상품 목록을 페이징하여 조회합니다.")
+    @Operation(summary = "적금 상품 목록 조회 API", description = "필터 조건에 맞는 적금 상품 목록을 조회합니다.")
     @Parameters({
             @Parameter(name = "bankCodes", description = "은행 고유 코드 목록 (쉼표로 구분)"),
             @Parameter(name = "term", description = "저축 희망 기간 (개월 단위)"),
@@ -46,7 +46,7 @@ public class ProductController {
     }
 
     @GetMapping("/deposits")
-    @Operation(summary = "예금 상품 목록 조회 API", description = "필터 조건에 맞는 예금 상품 목록을 페이징하여 조회합니다.")
+    @Operation(summary = "예금 상품 목록 조회 API", description = "필터 조건에 맞는 예금 상품 목록을 조회합니다.")
     @Parameters({
             @Parameter(name = "bankCodes", description = "은행 고유 코드 목록 (쉼표로 구분)"),
             @Parameter(name = "term", description = "저축 희망 기간 (개월 단위)"),

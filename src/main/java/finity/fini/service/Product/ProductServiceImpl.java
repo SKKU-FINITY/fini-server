@@ -8,6 +8,7 @@ import finity.fini.dto.Product.ProductResponseDTO;
 import finity.fini.repository.BankRepository;
 import finity.fini.repository.DepositProductRepository;
 import finity.fini.repository.SavingProductRepository;
+import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
@@ -163,8 +164,9 @@ public class ProductServiceImpl implements ProductService {
         Specification<SavingProduct> spec = (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            // N+1 문제 해결을 위한 Fetch Join 추가
-            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+            Join<SavingProduct, SavingOption> optionJoin = root.join("savingOptions", JoinType.LEFT);
+            if (query.getResultType() != Long.class && query.getResultType() != long.class)
+            {
                 root.fetch("savingOptions", JoinType.LEFT);
             }
 
@@ -174,7 +176,7 @@ public class ProductServiceImpl implements ProductService {
             }
             if (term != null) {
                 // JOIN을 이미 했으므로 root.join 대신 root.get을 사용할 수 있습니다.
-                predicates.add(criteriaBuilder.equal(root.get("savingOptions").get("saveTrm"), term));
+                predicates.add(criteriaBuilder.equal(optionJoin.get("saveTrm"), term));
             }
             if (StringUtils.hasText(mtrtCondition)) {
                 predicates.add(criteriaBuilder.like(root.get("mtrtInt"), "%" + mtrtCondition + "%"));
@@ -225,8 +227,9 @@ public class ProductServiceImpl implements ProductService {
         Specification<DepositProduct> spec = (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            // N+1 문제 해결을 위한 Fetch Join 추가
-            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+            Join<DepositProduct, DepositOption> optionJoin = root.join("depositOptions", JoinType.LEFT);
+            if (query.getResultType() != Long.class && query.getResultType() != long.class)
+            {
                 root.fetch("depositOptions", JoinType.LEFT);
             }
 
@@ -235,7 +238,7 @@ public class ProductServiceImpl implements ProductService {
                 predicates.add(root.get("bank").get("finCoNo").in(bankCodeList));
             }
             if (term != null) {
-                predicates.add(criteriaBuilder.equal(root.get("depositOptions").get("saveTrm"), term));
+                predicates.add(criteriaBuilder.equal(optionJoin.get("saveTrm"), term));
             }
             if (StringUtils.hasText(mtrtCondition)) {
                 predicates.add(criteriaBuilder.like(root.get("mtrtInt"), "%" + mtrtCondition + "%"));

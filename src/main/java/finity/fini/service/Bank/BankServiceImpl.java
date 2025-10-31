@@ -37,7 +37,7 @@ public class BankServiceImpl implements BankService{
     @Transactional
     public void syncBanks() {
         String url = String.format("%s?auth=%s&topFinGrpNo=020000&pageNo=1", fssBankUrl, fssApiKey);
-        log.info("Requesting FSS Bank List API URL: {}", url);
+        log.info("Requesting FSS Bank List API URL: {}", fssBankUrl);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
