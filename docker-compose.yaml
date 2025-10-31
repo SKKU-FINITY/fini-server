@@ -10,7 +10,6 @@ services:
     image: traefik:v2.10
     container_name: traefik
     command:
-      - "--api.dashboard=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
@@ -24,12 +23,6 @@ services:
     restart: always
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.dashboard.rule=Host(`traefik.finiapp.tech`)"
-      - "traefik.http.routers.dashboard.service=api@internal"
-      - "traefik.http.routers.dashboard.entrypoints=web"
-      - "traefik.http.middlewares.dashboard-auth.basicauth.users=admin:$apr1$R1Rj/mVU$qPM080xxsLqpgr.Gny4qY0"
-
-      - "traefik.http.routers.dashboard.middlewares=dashboard-auth"
 
   fini-server:
     image: ysjjw2003/fini:latest
