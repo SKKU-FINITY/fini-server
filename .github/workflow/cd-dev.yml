@@ -37,7 +37,7 @@ jobs:
       - name: make secret files
         run: |
           mkdir -p ./src/main/resources
-          echo "${{ secrets.APPLICATION_YML }}" > ./src/main/resources/application.yml
+          echo "${{ secrets.APPLICATION_YAML }}" > ./src/main/resources/application.yml
 
       # Gradle Build
       - name: Build with Gradle
@@ -83,11 +83,9 @@ jobs:
             cd fini-server
             git pull
             echo "TAG=${{ needs.build.outputs.docker_image_tag }}" > .env
-            sudo docker-compose stop fini-server
-            sudo docker-compose rm -f fini-server
-            sudo docker rmi ${{ secrets.DOCKER_HUB_USERNAME }}/fini:$TAG || true
             sudo docker-compose pull fini-server
-            sudo docker-compose up -d fini-server --no-deps
+            sudo docker-compose down
+            sudo docker-compose up -d
         env:
           ACTIONS_RUNNER_DEBUG: true
 
