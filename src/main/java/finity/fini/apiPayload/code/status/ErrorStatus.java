@@ -16,12 +16,13 @@ public enum ErrorStatus implements BaseErrorCode {
     _UNAUTHORIZED(HttpStatus.UNAUTHORIZED,"COMMON401","인증이 필요합니다."),
     _FORBIDDEN(HttpStatus.FORBIDDEN, "COMMON403", "금지된 요청입니다."),
 
-    // 회원가입 관련 에러
+    // 회원 관련 에러
     USERNAME_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "AUTH4001", "이미 사용 중인 아이디입니다."),
-    // 로그인 관련 에러
     LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "AUTH4011", "아이디 또는 비밀번호가 잘못되었습니다."),
-    // 공통 에러
-    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "AUTH4041", "해당 사용자를 찾을 수 없습니다.");
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "AUTH4041", "해당 사용자를 찾을 수 없습니다."),
+
+    PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, "PRODUCT4041", "해당 금융상품을 찾을 수 없습니다."),
+    PRODUCT_SYNC_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "PRODUCT5001", "금융상품 정보 동기화에 실패했습니다. 관리자에게 문의 바랍니다.");
 
 
     private final HttpStatus httpStatus;

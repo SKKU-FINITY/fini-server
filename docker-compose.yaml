@@ -6,15 +6,48 @@ networks:
     name: fini-network
 
 services:
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik
+    command:
+      - "--api.insecure=true"         # true로 설정 시 http://traefik.localhost 에서 대시보드 접근 가능 (개발용)
+      - "--api.dashboard=true"        # 대시보드 활성화
+      - "--providers.docker=true"     # Docker를 서비스 검색 공급자로 사용
+      - "--providers.docker.exposedbydefault=false" # 'traefik.enable=true' 레이블이 붙은 컨테이너만 노출
+      - "--entrypoints.web.address=:80" # 'web'이라는 이름의 엔트리포인트를 80 포트에 생성
+    ports:
+      - "80:80"   # 호스트의 80 포트를 Traefik의 'web' 엔트리포인트로 매핑
+    volumes:
+      # Docker 소켓에 접근하여 컨테이너 이벤트를 감지
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - fini-network
+    restart: always
+    labels:
+      # Traefik 대시보드 자체를 'web' 엔트리포인트를 통해 노출
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.localhost`)"
+      - "traefik.http.routers.dashboard.service=api@internal" # Traefik 내부 API 서비스 지정
+      - "traefik.http.routers.dashboard.entrypoints=web"
+
   fini-server:
-    image: ysjjw2003/fini:${TAG}
+    build: .
+    container_name: fini-server
     environment:
       - TZ=Asia/Seoul
-    container_name: fini-server
-    ports: # 외부까지 연결 / expose : 컨테이너끼리만 연결
-      - "8080:8080"
-#    env_file:
-#      - .env
+#    ports: # traefik이 포트를 관리하므로 호스트에 직접 노출 안해도 됨
+#      - "8080:8080"
     networks:
       - fini-network
     restart: always # 컨테이너가 종료되면 항상 재시작
+    labels:
+      # --- Traefik 활성화 ---
+      - "traefik.enable=true" # 이 서비스를 Traefik이 관리하도록 설정
+
+      # --- 라우터 설정 (요청을 어떻게 받을지) ---
+      # 'fini-router'라는 이름의 라우터 생성
+      - "traefik.http.routers.fini-router.rule=Host(`fini.localhost`)" # 'fini.localhost' 도메인으로 오는 요청을 감지
+      - "traefik.http.routers.fini-router.entrypoints=web" # 'web' 엔트리포인트(80 포트) 사용
+
+      - "traefik.http.routers.fini-router.service=fini-service"
+      - "traefik.http.services.fini-service.loadbalancer.server.port=8080"

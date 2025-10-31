@@ -1,4 +1,36 @@
 package finity.fini.domain;
 
-public class Bank {
+import finity.fini.domain.common.BaseEntity;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Getter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+public class Bank extends BaseEntity {
+
+    @Id
+    @Column(name = "bank_id")
+    private String finCoNo; // 금융회사 코드 (FSS 제공)
+
+    private String korCoNm; // 금융회사 명
+    private String dclsMonth; // 공시 제출월
+    private String hompUrl; // 홈페이지 주소
+    private String calTel; // 대표 전화번호
+
+    @Column(length = 500)
+    private String dclsChrgMan; // 담당자 정보
+
+    @Builder.Default
+    @OneToMany(mappedBy = "bank", cascade = CascadeType.ALL)
+    private List<SavingProduct> savingProducts = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "bank", cascade = CascadeType.ALL)
+    private List<DepositProduct> depositProducts = new ArrayList<>();
 }
