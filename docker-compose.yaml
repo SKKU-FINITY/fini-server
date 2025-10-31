@@ -25,7 +25,7 @@ services:
       - "traefik.enable=true"
 
   fini-server:
-    image: ysjjw2003/fini:latest
+    image: ysjjw2003/fini:${TAG}
     container_name: fini-server
     environment:
       - TZ=Asia/Seoul

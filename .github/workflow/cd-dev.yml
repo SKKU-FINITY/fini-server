@@ -2,9 +2,9 @@ name: CD - Dev
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - dev
+#  push:
+#    branches:
+#      - dev
 
 jobs:
   build:
@@ -51,10 +51,6 @@ jobs:
         run: |
           export TZ=Asia/Seoul
           echo "docker_image_tag=$(date +'%Y%m%d-%H%M')" >> $GITHUB_OUTPUT
-
-      - name: Export Docker tag
-        id: export_tag
-        run: echo "docker_image_tag=$(echo '${{ steps.meta.outputs.tags }}' | cut -d ':' -f2)" >> $GITHUB_OUTPUT
 
       # DockerHub 로그인
       - name: Login to DockerHub
