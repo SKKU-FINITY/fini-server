@@ -23,8 +23,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-//                .allowedOrigins("https://your-production-frontend.com")
-                .allowedOriginPatterns("http://localhost:3000")
+                .allowedOriginPatterns("http://localhost:3000", "https://*.finiapp.tech")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH") // 허용할 HTTP method
                 .allowCredentials(true) // 쿠키 인증 요청 허용
                 .exposedHeaders("Authorization", "Content-Type");
