@@ -8,7 +8,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -32,50 +31,51 @@ public class ProductController {
     @GetMapping("/savings")
     @Operation(summary = "적금 상품 목록 조회 API", description = "필터 조건에 맞는 적금 상품 목록을 조회합니다.")
     @Parameters({
-            @Parameter(name = "bankCodes", description = "은행 고유 코드 목록 (쉼표로 구분)"),
-            @Parameter(name = "term", description = "저축 희망 기간 (개월 단위)"),
-            @Parameter(name = "mtrtCondition", description = "만기 후 이자율 조건 검색어"),
+
+            @Parameter(name = "bankNames", description = "은행 이름 목록 (여러 개 선택 가능)"),
+            @Parameter(name = "terms", description = "저축 희망 기간 목록 (개월 단위, 여러 개 선택 가능)"),
     })
     public ApiResponse<List<ProductResponseDTO.ProductListDTO>> getSavingProducts(
-            @RequestParam(required = false) String bankCodes,
-            @RequestParam(required = false) Integer term,
-            @RequestParam(required = false) String mtrtCondition) {
+            @RequestParam(required = false) List<String> bankNames,
+            @RequestParam(required = false) List<Integer> terms) {
 
-        List<ProductResponseDTO.ProductListDTO> productList = productService.findSavingProducts(bankCodes, term, mtrtCondition);
+        List<ProductResponseDTO.ProductListDTO> productList = productService.findSavingProducts(bankNames, terms);
         return ApiResponse.onSuccess(productList);
     }
 
     @GetMapping("/deposits")
     @Operation(summary = "예금 상품 목록 조회 API", description = "필터 조건에 맞는 예금 상품 목록을 조회합니다.")
     @Parameters({
-            @Parameter(name = "bankCodes", description = "은행 고유 코드 목록 (쉼표로 구분)"),
-            @Parameter(name = "term", description = "저축 희망 기간 (개월 단위)"),
-            @Parameter(name = "mtrtCondition", description = "만기 후 이자율 조건 검색어"),
+            @Parameter(name = "bankNames", description = "은행 이름 목록 (여러 개 선택 가능)"),
+            @Parameter(name = "terms", description = "저축 희망 기간 목록 (개월 단위, 여러 개 선택 가능)"),
     })
     public ApiResponse<List<ProductResponseDTO.ProductListDTO>> getDepositProducts(
-            @RequestParam(required = false) String bankCodes,
-            @RequestParam(required = false) Integer term,
-            @RequestParam(required = false) String mtrtCondition) {
+            @RequestParam(required = false) List<String> bankNames,
+            @RequestParam(required = false) List<Integer> terms) {
 
-        List<ProductResponseDTO.ProductListDTO> productList = productService.findDepositProducts(bankCodes, term, mtrtCondition);
+        List<ProductResponseDTO.ProductListDTO> productList = productService.findDepositProducts(bankNames, terms);
         return ApiResponse.onSuccess(productList);
     }
 
     @GetMapping("/savings/{productId}")
     @Operation(summary = "특정 적금 상품 상세 조회 API", description = "상품 ID로 특정 적금 상품의 상세 정보를 조회합니다.")
     public ApiResponse<ProductResponseDTO.ProductDetailDTO> getSavingProductDetail(
-            @PathVariable Long productId) {
+            @PathVariable Long productId,
+            // [추가] optionId를 query parameter로 받음 (선택 사항)
+            @RequestParam(required = false) Long optionId) {
 
-        ProductResponseDTO.ProductDetailDTO productDetail = productService.getSavingProductDetail(productId);
+        ProductResponseDTO.ProductDetailDTO productDetail = productService.getSavingProductDetail(productId, optionId);
         return ApiResponse.onSuccess(productDetail);
     }
 
     @GetMapping("/deposits/{productId}")
     @Operation(summary = "특정 예금 상품 상세 조회 API", description = "상품 ID로 특정 예금 상품의 상세 정보를 조회합니다.")
     public ApiResponse<ProductResponseDTO.ProductDetailDTO> getDepositProductDetail(
-            @PathVariable Long productId) {
+            @PathVariable Long productId,
+            // [추가] optionId를 query parameter로 받음 (선택 사항)
+            @RequestParam(required = false) Long optionId) {
 
-        ProductResponseDTO.ProductDetailDTO productDetail = productService.getDepositProductDetail(productId);
+        ProductResponseDTO.ProductDetailDTO productDetail = productService.getDepositProductDetail(productId, optionId);
         return ApiResponse.onSuccess(productDetail);
     }
 }

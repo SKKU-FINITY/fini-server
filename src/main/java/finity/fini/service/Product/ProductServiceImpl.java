@@ -8,6 +8,11 @@ import finity.fini.dto.Product.ProductResponseDTO;
 import finity.fini.repository.BankRepository;
 import finity.fini.repository.DepositProductRepository;
 import finity.fini.repository.SavingProductRepository;
+import finity.fini.repository.DepositOptionRepository;
+import finity.fini.repository.SavingOptionRepository;
+import finity.fini.domain.DepositOption;
+import finity.fini.domain.SavingOption;
+import org.springframework.data.domain.Sort;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
@@ -35,6 +40,8 @@ public class ProductServiceImpl implements ProductService {
     private final DepositProductRepository depositProductRepository;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final SavingOptionRepository savingOptionRepository;
+    private final DepositOptionRepository depositOptionRepository;
 
     @Value("${fss.api.key}")
     private String fssApiKey;
@@ -159,145 +166,122 @@ public class ProductServiceImpl implements ProductService {
         }
     }
 
+
     @Override
-    public List<ProductResponseDTO.ProductListDTO> findSavingProducts(String bankCodes, Integer term, String mtrtCondition) {
-        Specification<SavingProduct> spec = (root, query, criteriaBuilder) -> {
+    public List<ProductResponseDTO.ProductListDTO> findSavingProducts(List<String> bankNames, List<Integer> terms) {
+        // 1. Specification<SavingOption> 생성 (옵션을 기준으로 조회)
+        Specification<SavingOption> spec = (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            Join<SavingProduct, SavingOption> optionJoin = root.join("savingOptions", JoinType.LEFT);
-            if (query.getResultType() != Long.class && query.getResultType() != long.class)
-            {
-                root.fetch("savingOptions", JoinType.LEFT);
+            // N+1 문제 방지를 위해 연관 엔티티(상품, 은행)를 fetch join 합니다.
+            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+                root.fetch("savingProduct").fetch("bank");
             }
 
-            if (StringUtils.hasText(bankCodes)) {
-                List<String> bankCodeList = Arrays.asList(bankCodes.split(","));
-                predicates.add(root.get("bank").get("finCoNo").in(bankCodeList));
-            }
-            if (term != null) {
-                // JOIN을 이미 했으므로 root.join 대신 root.get을 사용할 수 있습니다.
-                predicates.add(criteriaBuilder.equal(optionJoin.get("saveTrm"), term));
-            }
-            if (StringUtils.hasText(mtrtCondition)) {
-                predicates.add(criteriaBuilder.like(root.get("mtrtInt"), "%" + mtrtCondition + "%"));
+            // 은행 이름 필터링 (옵션 -> 상품 -> 은행 순으로 Join)
+            if (bankNames != null && !bankNames.isEmpty()) {
+                Join<SavingOption, SavingProduct> productJoin = root.join("savingProduct");
+                predicates.add(productJoin.get("bank").get("korCoNm").in(bankNames));
             }
 
-            query.distinct(true);
+            // 저축 기간 필터링
+            if (terms != null && !terms.isEmpty()) {
+                predicates.add(root.get("saveTrm").in(terms));
+            }
+
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
 
-        List<SavingProduct> productList = savingProductRepository.findAll(spec);
+        // 2. 정렬 조건 생성: 기본 금리(intrRate)
+        Sort sort = Sort.by(Sort.Direction.DESC, "intrRate");
 
-        return productList.stream().map(product -> {
-            // 대표 옵션 선택 로직
-            Optional<SavingOption> representativeOption;
-            if (term != null) {
-                // 기간으로 필터링한 경우 해당 기간의 옵션을 찾음
-                representativeOption = product.getSavingOptions().stream()
-                        .filter(opt -> term.equals(opt.getSaveTrm()))
-                        .findFirst();
-            } else {
-                // 필터링이 없는 경우 최고 금리 옵션을 찾음
-                representativeOption = product.getSavingOptions().stream()
-                        .max(Comparator.comparing(SavingOption::getIntrRate2,
-                                Comparator.nullsFirst(Comparator.naturalOrder())));
-            }
+        // 3. DB에서 조건에 맞는 '옵션' 목록을 정렬된 상태로 조회
+        List<SavingOption> options = savingOptionRepository.findAll(spec, sort);
 
-            // 상품의 전체 옵션 중 최고 금리 계산
-            double maxRate = product.getSavingOptions().stream()
-                    .filter(opt -> opt.getIntrRate2() != null) // **이 필터가 핵심입니다.**
-                    .mapToDouble(SavingOption::getIntrRate2)
-                    .max()
-                    .orElse(0.0);
-
-            // DTO 빌더에 saveTerm과 baseRate 추가
-            return ProductResponseDTO.ProductListDTO.builder()
-                    .productId(product.getSavingProductId())
-                    .bankName(product.getBank().getKorCoNm())
-                    .productName(product.getFinPrdtNm())
-                    .saveTerm(representativeOption.map(SavingOption::getSaveTrm).orElse(null))
-                    .baseRate(representativeOption.map(SavingOption::getIntrRate).orElse(null))
-                    .maxRate(maxRate)
-                    .build();
-        }).collect(Collectors.toList());
+        // 4. 조회된 옵션 목록을 DTO 목록으로 변환
+        return options.stream()
+                .map(ProductConverter::toProductListDTO)
+                .collect(Collectors.toList());
     }
 
+
     @Override
-    public List<ProductResponseDTO.ProductListDTO> findDepositProducts(String bankCodes, Integer term, String mtrtCondition) {
-        Specification<DepositProduct> spec = (root, query, criteriaBuilder) -> {
+    public List<ProductResponseDTO.ProductListDTO> findDepositProducts(List<String> bankNames, List<Integer> terms) {
+        // 1. Specification<DepositOption> 생성
+        Specification<DepositOption> spec = (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            Join<DepositProduct, DepositOption> optionJoin = root.join("depositOptions", JoinType.LEFT);
-            if (query.getResultType() != Long.class && query.getResultType() != long.class)
-            {
-                root.fetch("depositOptions", JoinType.LEFT);
+            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+                root.fetch("depositProduct").fetch("bank");
             }
 
-            if (StringUtils.hasText(bankCodes)) {
-                List<String> bankCodeList = Arrays.asList(bankCodes.split(","));
-                predicates.add(root.get("bank").get("finCoNo").in(bankCodeList));
-            }
-            if (term != null) {
-                predicates.add(criteriaBuilder.equal(optionJoin.get("saveTrm"), term));
-            }
-            if (StringUtils.hasText(mtrtCondition)) {
-                predicates.add(criteriaBuilder.like(root.get("mtrtInt"), "%" + mtrtCondition + "%"));
+            if (bankNames != null && !bankNames.isEmpty()) {
+                Join<DepositOption, DepositProduct> productJoin = root.join("depositProduct");
+                predicates.add(productJoin.get("bank").get("korCoNm").in(bankNames));
             }
 
-            query.distinct(true);
+            if (terms != null && !terms.isEmpty()) {
+                predicates.add(root.get("saveTrm").in(terms));
+            }
+
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
 
-        List<DepositProduct> productList = depositProductRepository.findAll(spec);
+        // 2. 정렬 조건 생성: 기본 금리(intrRate)
+        Sort sort = Sort.by(Sort.Direction.DESC, "intrRate");
 
-        return productList.stream().map(product -> {
-            // 대표 옵션 선택 로직
-            Optional<DepositOption> representativeOption;
-            if (term != null) {
-                // 기간으로 필터링한 경우 해당 기간의 옵션을 찾음
-                representativeOption = product.getDepositOptions().stream()
-                        .filter(opt -> term.equals(opt.getSaveTrm()))
-                        .findFirst();
-            } else {
-                // 필터링이 없는 경우 최고 금리 옵션을 찾음
-                representativeOption = product.getDepositOptions().stream()
-                        .max(Comparator.comparing(DepositOption::getIntrRate2,
-                                Comparator.nullsFirst(Comparator.naturalOrder())));
-            }
+        // 3. DB에서 '옵션' 목록을 정렬된 상태로 조회
+        List<DepositOption> options = depositOptionRepository.findAll(spec, sort);
 
-            // 상품의 전체 옵션 중 최고 금리 계산
-            double maxRate = product.getDepositOptions().stream()
-                    .filter(opt -> opt.getIntrRate2() != null) // **이 필터가 핵심입니다.**
-                    .mapToDouble(DepositOption::getIntrRate2)
-                    .max()
-                    .orElse(0.0);
-
-
-            // DTO 빌더에 saveTerm과 baseRate 추가
-            return ProductResponseDTO.ProductListDTO.builder()
-                    .productId(product.getDepositProductId())
-                    .bankName(product.getBank().getKorCoNm())
-                    .productName(product.getFinPrdtNm())
-                    .saveTerm(representativeOption.map(DepositOption::getSaveTrm).orElse(null))
-                    .baseRate(representativeOption.map(DepositOption::getIntrRate).orElse(null))
-                    .maxRate(maxRate)
-                    .build();
-        }).collect(Collectors.toList());
+        // 4. DTO 목록으로 변환
+        return options.stream()
+                .map(ProductConverter::toProductListDTO)
+                .collect(Collectors.toList());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public ProductResponseDTO.ProductDetailDTO getSavingProductDetail(Long productId) {
+    // [수정] optionId 파라미터 추가
+    public ProductResponseDTO.ProductDetailDTO getSavingProductDetail(Long productId, Long optionId) {
         SavingProduct product = savingProductRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("해당 적금 상품을 찾을 수 없습니다. ID: " + productId));
-        return ProductConverter.toSavingProductDetailDTO(product);
+
+        List<SavingOption> optionsToDisplay;
+
+        if (optionId != null) {
+            // [추가] optionId가 있으면, 해당 옵션만 필터링
+            optionsToDisplay = product.getSavingOptions().stream()
+                    .filter(opt -> optionId.equals(opt.getSavingOptionId()))
+                    .collect(Collectors.toList());
+        } else {
+            // [기존] optionId가 없으면, 모든 옵션 포함
+            optionsToDisplay = product.getSavingOptions();
+        }
+
+        // [수정] 필터링된 옵션 리스트를 컨버터로 전달
+        return ProductConverter.toSavingProductDetailDTO(product, optionsToDisplay);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public ProductResponseDTO.ProductDetailDTO getDepositProductDetail(Long productId) {
+    // [수정] optionId 파라미터 추가
+    public ProductResponseDTO.ProductDetailDTO getDepositProductDetail(Long productId, Long optionId) {
         DepositProduct product = depositProductRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("해당 예금 상품을 찾을 수 없습니다. ID: " + productId));
-        return ProductConverter.toDepositProductDetailDTO(product);
+
+        List<DepositOption> optionsToDisplay;
+
+        if (optionId != null) {
+            // [추가] optionId가 있으면, 해당 옵션만 필터링
+            optionsToDisplay = product.getDepositOptions().stream()
+                    .filter(opt -> optionId.equals(opt.getDepositOptionId()))
+                    .collect(Collectors.toList());
+        } else {
+            // [기존] optionId가 없으면, 모든 옵션 포함
+            optionsToDisplay = product.getDepositOptions();
+        }
+
+        // [수정] 필터링된 옵션 리스트를 컨버터로 전달
+        return ProductConverter.toDepositProductDetailDTO(product, optionsToDisplay);
     }
 }
