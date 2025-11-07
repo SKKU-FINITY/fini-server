@@ -253,6 +253,12 @@ public class ProductServiceImpl implements ProductService {
             optionsToDisplay = product.getSavingOptions().stream()
                     .filter(opt -> optionId.equals(opt.getSavingOptionId()))
                     .collect(Collectors.toList());
+
+            if (optionsToDisplay.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "해당 옵션 ID는 이 상품에 속하지 않습니다. productId: " + productId + ", optionId: " + optionId);
+            }
+            // error handling 추가
         } else {
             // [기존] optionId가 없으면, 모든 옵션 포함
             optionsToDisplay = product.getSavingOptions();
