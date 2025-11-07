@@ -29,6 +29,7 @@ public class AppConfig {
 
         // 타임아웃 설정 (연결 및 읽기)
         factory.setConnectTimeout(5000); // 5초
+        factory.setReadTimeout(5000);
 
         return new RestTemplate(factory);
     }

@@ -14,14 +14,14 @@ public interface ProductService {
     void syncDepositProducts();
 
     // 적금 상품 목록 조회
-    List<ProductResponseDTO.ProductListDTO> findSavingProducts(String bankCodes, Integer term, String mtrtCondition);
+    List<ProductResponseDTO.ProductListDTO> findSavingProducts(List<String> bankNames, List<Integer> terms);
 
     // 예금 상품 목록 조회
-    List<ProductResponseDTO.ProductListDTO> findDepositProducts(String bankCodes, Integer term, String mtrtCondition);
+    List<ProductResponseDTO.ProductListDTO> findDepositProducts(List<String> bankNames, List<Integer> terms);
 
     // 적금 상품 상세 조회
-    ProductResponseDTO.ProductDetailDTO getSavingProductDetail(Long productId);
+    ProductResponseDTO.ProductDetailDTO getSavingProductDetail(Long productId, Long optionId);
 
     // 예금 상품 상세 조회
-    ProductResponseDTO.ProductDetailDTO getDepositProductDetail(Long productId);
+    ProductResponseDTO.ProductDetailDTO getDepositProductDetail(Long productId, Long optionId);
 }
