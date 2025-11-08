@@ -48,4 +48,14 @@ public class ProductResponseDTO {
         private Double baseRate;     // 저축 금리
         private Double maxRate;      // 최고 우대 금리
     }
+
+    @Getter
+    @Builder
+    public static class PopularProductDTO {
+        private Long productId;
+        private String bankName;
+        private String productName;
+        private String aiSummary;
+        private Double maxRate;     // 대표 최고 금리
+    }
 }

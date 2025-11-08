@@ -19,7 +19,7 @@ import java.util.List;
                 columnNames = {"fin_co_no", "fin_prdt_cd"}
         )
 })
-public class SavingProduct extends BaseEntity {
+public class SavingProduct extends BaseEntity implements ProductBase{
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -58,4 +58,16 @@ public class SavingProduct extends BaseEntity {
     @Builder.Default
     @OneToMany(mappedBy = "savingProduct", cascade = CascadeType.ALL)
     private List<SavingOption> savingOptions = new ArrayList<>();
+
+    @Override
+    @Transient // DB 컬럼이 아님을 명시
+    public Long getProductId() {
+        return this.savingProductId;
+    }
+
+    @Override
+    @Transient
+    public ProductPopularity.ProductType getProductTypeEnum() {
+        return ProductPopularity.ProductType.SAVING;
+    }
 }

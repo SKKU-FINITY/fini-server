@@ -18,7 +18,7 @@ import java.util.List;
                 columnNames = {"fin_co_no", "fin_prdt_cd"}
         )
 })
-public class DepositProduct extends BaseEntity {
+public class DepositProduct extends BaseEntity implements ProductBase{
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -56,4 +56,16 @@ public class DepositProduct extends BaseEntity {
     @Builder.Default
     @OneToMany(mappedBy = "depositProduct", cascade = CascadeType.ALL)
     private List<DepositOption> depositOptions = new ArrayList<>();
+
+    @Override
+    @Transient // DB 컬럼이 아님을 명시
+    public Long getProductId() {
+        return this.depositProductId;
+    }
+
+    @Override
+    @Transient
+    public ProductPopularity.ProductType getProductTypeEnum() {
+        return ProductPopularity.ProductType.DEPOSIT;
+    }
 }

@@ -26,4 +26,5 @@ public class SavingOption extends BaseEntity {
     private Integer saveTrm;        // 저축 기간 (개월)
     private Double intrRate;        // 저축 금리
     private Double intrRate2;       // 최고 우대금리
+
 }

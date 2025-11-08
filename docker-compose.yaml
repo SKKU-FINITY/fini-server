@@ -26,6 +26,7 @@ services:
 
   fini-server:
     image: ysjjw2003/fini:${TAG}
+    platform: linux/amd64
     container_name: fini-server
     environment:
       - TZ=Asia/Seoul

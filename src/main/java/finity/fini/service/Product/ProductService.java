@@ -25,3 +25,4 @@ public interface ProductService {
     // 예금 상품 상세 조회
     ProductResponseDTO.ProductDetailDTO getDepositProductDetail(Long productId, Long optionId);
 }
+
