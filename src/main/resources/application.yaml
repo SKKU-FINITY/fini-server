@@ -1,0 +1,41 @@
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+    hikari:
+      # 연결이 끊어지지 않도록 5분(300000ms)마다 간단한 쿼리를 날려 "살아있음"을 알립니다.
+      keepalive-time: 300000
+      # 연결의 최대 수명을 10분(600000ms)으로 설정합니다.
+      max-lifetime: 600000
+  sql:
+    init:
+      mode: never
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        show_sql: true
+        format_sql: true
+        use_sql_comments: true
+        hbm2ddl:
+          auto: update
+        default_batch_fetch_size: 1000
+jwt:
+  secret: ${JWT_SECRET}
+fss:
+  api:
+    key: ${FSS_API_KEY}
+    url:
+      savings: http://finlife.fss.or.kr/finlifeapi/savingProductsSearch.json
+      deposits: http://finlife.fss.or.kr/finlifeapi/depositProductsSearch.json
+      banks: http://finlife.fss.or.kr/finlifeapi/companySearch.json
+naver:
+  api:
+    client-id: ${NAVER_API_ID}
+    client-secret: ${NAVER_API_SECRET}
+gemini:
+  api:
+    key: ${GEMINI_API_KEY}

@@ -36,7 +36,7 @@ public class PopularityController {
     }
 
     @GetMapping("/savings/compare/{productId}") // [경로 변경]
-    @Operation(summary = "적금 비교 추천 API", description = "현재 상품을 제외한 인기 상위 5개 적금 상품을 조회합니다.")
+    @Operation(summary = "적금 비교 추천 API", description = "현재 상품을 제외한 적금 상품들을 인기도 내림차순으로 조회합니다.")
     public ApiResponse<List<ProductResponseDTO.PopularProductDTO>> getSavingProductComparisons(
             @PathVariable Long productId) {
         List<ProductResponseDTO.PopularProductDTO> productList = popularityService.findSavingProductComparisons(productId);
@@ -44,7 +44,7 @@ public class PopularityController {
     }
 
     @GetMapping("/deposits/compare/{productId}") // [경로 변경]
-    @Operation(summary = "예금 비교 추천 API", description = "현재 상품을 제외한 인기 상위 5개 예금 상품을 조회합니다.")
+    @Operation(summary = "예금 비교 추천 API", description = "현재 상품을 제외한 예금 상품들을 인기도 내림차순으로 조회합니다.")
     public ApiResponse<List<ProductResponseDTO.PopularProductDTO>> getDepositProductComparisons(
             @PathVariable Long productId) {
         List<ProductResponseDTO.PopularProductDTO> productList = popularityService.findDepositProductComparisons(productId);

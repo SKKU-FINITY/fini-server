@@ -13,19 +13,20 @@ services:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
+
+      - "--api.insecure=true"
+      - "--api.dashboard=true"
     ports:
       - "80:80"
-
+      - "8080:8080"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
     networks:
       - fini-network
     restart: always
-    labels:
-      - "traefik.enable=true"
 
   fini-server:
-    image: ysjjw2003/fini:${TAG}
+    image: ${AWS_ID}.dkr.ecr.ap-northeast-2.amazonaws.com/fini-repo:latest
     platform: linux/amd64
     container_name: fini-server
     environment:

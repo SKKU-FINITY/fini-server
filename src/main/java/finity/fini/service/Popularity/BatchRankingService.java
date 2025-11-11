@@ -127,7 +127,7 @@ public class BatchRankingService {
             popularityRepository.save(pop);
 
             // [속도 개선] 불필요한 0.1초 대기 삭제!
-            // Thread.sleep(100);
+             Thread.sleep(100);
 
         } catch (Exception e) {
             log.error("상품 랭킹 업데이트 실패: {} - {}", keyword, e.getMessage());

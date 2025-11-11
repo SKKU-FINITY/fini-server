@@ -46,32 +46,31 @@ public class PopularityServiceImpl implements PopularityService {
 
     @Override
     public List<ProductResponseDTO.PopularProductDTO> findSavingProductComparisons(Long currentProductId) {
-        Pageable topSix = PageRequest.of(0, 6, Sort.by(Sort.Direction.DESC, "popularityScore"));
-        List<ProductPopularity> popList = popularityRepository.findByProductType(ProductPopularity.ProductType.SAVING, topSix);
+        // [수정] 1. Pageable 제거, Repository의 새 메서드 호출
+        List<ProductPopularity> comparisonList = popularityRepository
+                .findAllByProductTypeAndProductIdNotOrderByPopularityScoreDesc(
+                        ProductPopularity.ProductType.SAVING,
+                        currentProductId
+                );
 
-        List<ProductPopularity> comparisonList = popList.stream()
-                .filter(p -> !p.getProductId().equals(currentProductId))
-                .limit(5)
-                .collect(Collectors.toList());
+        // [수정] 2. 인-메모리 필터링(.filter, .limit) 로직 제거
         return convertToPopularDTO(comparisonList, ProductPopularity.ProductType.SAVING);
     }
 
     @Override
     public List<ProductResponseDTO.PopularProductDTO> findDepositProductComparisons(Long currentProductId) {
-        Pageable topSix = PageRequest.of(0, 6, Sort.by(Sort.Direction.DESC, "popularityScore"));
-        List<ProductPopularity> popList = popularityRepository.findByProductType(ProductPopularity.ProductType.DEPOSIT, topSix);
+        // [수정] 1. Pageable 제거, Repository의 새 메서드 호출
+        List<ProductPopularity> comparisonList = popularityRepository
+                .findAllByProductTypeAndProductIdNotOrderByPopularityScoreDesc(
+                        ProductPopularity.ProductType.DEPOSIT,
+                        currentProductId
+                );
 
-        List<ProductPopularity> comparisonList = popList.stream()
-                .filter(p -> !p.getProductId().equals(currentProductId))
-                .limit(5)
-                .collect(Collectors.toList());
+        // [수정] 2. 인-메모리 필터링(.filter, .limit) 로직 제거
         return convertToPopularDTO(comparisonList, ProductPopularity.ProductType.DEPOSIT);
     }
 
-    /**
-     * [헬퍼 메서드]
-     * ProductPopularity 리스트를 DTO 리스트로 변환 (N+1 문제 방지)
-     */
+
     private List<ProductResponseDTO.PopularProductDTO> convertToPopularDTO(
             List<ProductPopularity> popList, ProductPopularity.ProductType type) {
 
@@ -83,10 +82,10 @@ public class PopularityServiceImpl implements PopularityService {
 
         Map<Long, ? extends ProductBase> productMap;
         if (type == ProductPopularity.ProductType.SAVING) {
-            productMap = savingProductRepository.findAllById(productIds).stream()
+            productMap = savingProductRepository.findAllWithBankByIdIn(productIds).stream()
                     .collect(Collectors.toMap(SavingProduct::getProductId, p -> p));
         } else {
-            productMap = depositProductRepository.findAllById(productIds).stream()
+            productMap = depositProductRepository.findAllWithBankByIdIn(productIds).stream()
                     .collect(Collectors.toMap(DepositProduct::getProductId, p -> p));
         }
 
@@ -96,25 +95,46 @@ public class PopularityServiceImpl implements PopularityService {
                     if (product == null) return null;
 
                     double maxRate = 0.0;
+                    List<ProductResponseDTO.OptionDTO> options = Collections.emptyList(); // [추가]
+
                     if (type == ProductPopularity.ProductType.SAVING) {
-                        maxRate = ((SavingProduct) product).getSavingOptions().stream()
-                                .mapToDouble(opt -> opt.getIntrRate2() != null ? opt.getIntrRate2() : 0.0)
+                        SavingProduct sp = (SavingProduct) product;
+
+                        // [수정] 옵션 DTO 리스트 생성
+                        options = sp.getSavingOptions().stream()
+                                .map(ProductResponseDTO.OptionDTO::from) // 팩토리 메서드 사용
+                                .collect(Collectors.toList());
+
+                        // [수정] 최고 금리 계산
+                        maxRate = options.stream()
+                                .mapToDouble(opt -> opt.getMaxRate() != null ? opt.getMaxRate() : 0.0)
                                 .max().orElse(0.0);
+
                     } else {
-                        maxRate = ((DepositProduct) product).getDepositOptions().stream()
-                                .mapToDouble(opt -> opt.getIntrRate2() != null ? opt.getIntrRate2() : 0.0)
+                        DepositProduct dp = (DepositProduct) product;
+
+                        // [수정] 옵션 DTO 리스트 생성
+                        options = dp.getDepositOptions().stream()
+                                .map(ProductResponseDTO.OptionDTO::from) // 팩토리 메서드 사용
+                                .collect(Collectors.toList());
+
+                        // [수정] 최고 금리 계산
+                        maxRate = options.stream()
+                                .mapToDouble(opt -> opt.getMaxRate() != null ? opt.getMaxRate() : 0.0)
                                 .max().orElse(0.0);
                     }
 
                     return ProductResponseDTO.PopularProductDTO.builder()
                             .productId(pop.getProductId())
-                            .aiSummary(pop.getAiSummary()) // V2 기준 (AI 요약 포함)
+                            .aiSummary(pop.getAiSummary())
                             .bankName(product.getBank().getKorCoNm())
                             .productName(product.getFinPrdtNm())
                             .maxRate(maxRate)
+                            .options(options) // [추가] DTO에 옵션 리스트 설정
                             .build();
                 })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
     }
+
 }
