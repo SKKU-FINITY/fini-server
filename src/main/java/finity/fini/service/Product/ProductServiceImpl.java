@@ -5,16 +5,11 @@ import finity.fini.converter.ProductConverter;
 import finity.fini.domain.*;
 import finity.fini.dto.Product.FssProductDTO;
 import finity.fini.dto.Product.ProductResponseDTO;
-import finity.fini.repository.BankRepository;
-import finity.fini.repository.DepositProductRepository;
-import finity.fini.repository.SavingProductRepository;
-import finity.fini.repository.DepositOptionRepository;
-import finity.fini.repository.SavingOptionRepository;
+import finity.fini.repository.*;
 import finity.fini.domain.DepositOption;
 import finity.fini.domain.SavingOption;
 import org.springframework.data.domain.Sort;
 import jakarta.persistence.criteria.Join;
-import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +37,8 @@ public class ProductServiceImpl implements ProductService {
     private final ObjectMapper objectMapper;
     private final SavingOptionRepository savingOptionRepository;
     private final DepositOptionRepository depositOptionRepository;
+
+    private final ProductPopularityRepository popularityRepository;
 
     @Value("${fss.api.key}")
     private String fssApiKey;
@@ -270,7 +267,6 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    // [수정] optionId 파라미터 추가
     public ProductResponseDTO.ProductDetailDTO getDepositProductDetail(Long productId, Long optionId) {
         DepositProduct product = depositProductRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("해당 예금 상품을 찾을 수 없습니다. ID: " + productId));
@@ -278,16 +274,14 @@ public class ProductServiceImpl implements ProductService {
         List<DepositOption> optionsToDisplay;
 
         if (optionId != null) {
-            // [추가] optionId가 있으면, 해당 옵션만 필터링
             optionsToDisplay = product.getDepositOptions().stream()
                     .filter(opt -> optionId.equals(opt.getDepositOptionId()))
                     .collect(Collectors.toList());
         } else {
-            // [기존] optionId가 없으면, 모든 옵션 포함
             optionsToDisplay = product.getDepositOptions();
         }
 
-        // [수정] 필터링된 옵션 리스트를 컨버터로 전달
         return ProductConverter.toDepositProductDetailDTO(product, optionsToDisplay);
     }
+
 }

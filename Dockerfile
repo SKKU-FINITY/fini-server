@@ -1,4 +1,4 @@
-FROM openjdk:17-jdk-slim
+FROM eclipse-temurin:17-jdk
 ENV TZ=Asia/Seoul
 RUN ln -snf /usr/share/zoneinfo/Asia/Seoul /etc/localtime && echo "Asia/Seoul" > /etc/timezone
 ARG JAR_FILE=build/libs/fini-0.0.1-SNAPSHOT.jar
