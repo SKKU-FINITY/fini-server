@@ -37,6 +37,7 @@ public class SecurityConfig {
 
                         // 기존에 허용된 경로
                         // 🔒 [배포 단계] 인증 적용 설정 (필요한 경로만 허용)
+                        //.requestMatchers("/").permitAll()
 //                        .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
 //                        // Swagger UI와 API 문서를 위한 경로 허용
 //                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
