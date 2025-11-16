@@ -7,6 +7,12 @@ terraform {
       version = "~> 5.0"
     }
   }
+
+  backend "s3" {
+    bucket = "fini-app-bucket" # 1번에서 만든 버킷 이름
+    key = "network/terraform.tfstate"      # ★★★ 각 모듈별로 경로를 다르게 설정! (예: "network/terraform.tfstate")
+    region = "ap-northeast-2"
+  }
 }
 
 provider "aws" {
