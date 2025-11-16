@@ -24,3 +24,7 @@ variable "app_image_uri" {
   type        = string
   default     = null # CI/CD에서 값을 주지 않으면 null이 되어 모듈의 default(:latest)가 동작함
 }
+
+variable "my_ip" {}
+variable "db_snapshot_identifier" {}
+variable "db_password" {}

@@ -5,15 +5,23 @@ terraform {
       version = "~> 5.0"
     }
   }
+
+  backend "s3" {
+    bucket = "fini-app-bucket"
+    key = "data/terraform.tfstate"      # ★★★ 각 모듈별로 경로를 다르게 설정! (예: "network/terraform.tfstate")
+    region = "ap-northeast-2"
+  }
 }
 provider "aws" {
   region = "ap-northeast-2"
 }
 
 data "terraform_remote_state" "network" {
-  backend = "local"
+  backend = "s3"
   config = {
-    path = "../network/terraform.tfstate"
+    bucket = "fini-app-bucket" # 동일한 버킷 이름
+    key    = "network/terraform.tfstate"   # network 모듈의 S3 키
+    region = "ap-northeast-2"
   }
 }
 

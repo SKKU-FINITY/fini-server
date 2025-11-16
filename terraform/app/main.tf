@@ -5,6 +5,12 @@ terraform {
       version = "~> 5.0"
     }
   }
+
+  backend "s3" {
+    bucket = "fini-app-bucket" # 1번에서 만든 버킷 이름
+    key = "app/terraform.tfstate"      # ★★★ 각 모듈별로 경로를 다르게 설정! (예: "network/terraform.tfstate")
+    region = "ap-northeast-2"
+  }
 }
 
 # 1. 기본 프로바이더 (서울 리전)
@@ -20,16 +26,20 @@ provider "aws" {
 
 # 3. network 스택의 상태 파일 읽기
 data "terraform_remote_state" "network" {
-  backend = "local"
+  backend = "s3"
   config = {
-    path = "../network/terraform.tfstate"
+    bucket = "fini-app-bucket" # 동일한 버킷 이름
+    key    = "network/terraform.tfstate"   # network 모듈의 S3 키
+    region = "ap-northeast-2"
   }
 }
 
 data "terraform_remote_state" "data" {
-  backend = "local"
+  backend = "s3"
   config = {
-    path = "../data/terraform.tfstate"
+    bucket = "fini-app-bucket"
+    key    = "data/terraform.tfstate"      # data 모듈의 S3 키
+    region = "ap-northeast-2"
   }
 }
 
