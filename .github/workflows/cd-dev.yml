@@ -79,11 +79,22 @@ jobs:
           ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
           IMAGE_TAG: ${{ steps.set_tag.outputs.docker_image_tag }}
         run: |
-          docker build --no-cache -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          echo "image_uri=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          set -e
+
+          FULL_IMAGE_URI="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          LATEST_IMAGE_URI="$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+            
+          echo "Building image: $FULL_IMAGE_URI"
+            
+          docker build --no-cache -t $FULL_IMAGE_URI .
+          docker tag $FULL_IMAGE_URI $LATEST_IMAGE_URI
+            
+          docker push $FULL_IMAGE_URI
+          docker push $LATEST_IMAGE_URI
+            
+          echo "Push successful."
+     
+          echo "image_uri=$FULL_IMAGE_URI" >> $GITHUB_OUTPUT
 
 
   deploy-with-terraform:
