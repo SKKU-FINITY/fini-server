@@ -15,7 +15,7 @@ jobs:
     name: Build and Push to ECR
     runs-on: ubuntu-latest
     outputs:
-      image_uri: ${{ steps.build-push.outputs.image_uri }}
+      image_uri: ${{ steps.set_outputs.outputs.image_uri }}
 
     steps:
 #      - name: Discord Notification
@@ -71,31 +71,32 @@ jobs:
           export TZ=Asia/Seoul
           echo "docker_image_tag=$(date +'%Y%m%d-%H%M')" >> $GITHUB_OUTPUT
 
-      # 3. Docker 빌드 및 ECR 푸시
+      - name: Set Image URI Output
+        id: set_outputs
+        run: |
+          IMAGE_TAG="${{ steps.set_tag.outputs.docker_image_tag }}"
+          ECR_REGISTRY="${{ steps.login-ecr.outputs.registry }}"
+          ECR_REPOSITORY="${{ secrets.ECR_REPOSITORY }}"
+
+          echo "image_uri=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
       - name: Build, Tag, and Push image to Amazon ECR
         id: build-push
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
-          IMAGE_TAG: ${{ steps.set_tag.outputs.docker_image_tag }}
+          FULL_IMAGE_URI: ${{ steps.set_outputs.outputs.image_uri }}
+          LATEST_IMAGE_URI: ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY }}:latest
         run: |
-          set -e
+          set -e # 오류 발생 시 즉시 중단
 
-          FULL_IMAGE_URI="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-          LATEST_IMAGE_URI="$ECR_REGISTRY/$ECR_REPOSITORY:latest"
-            
           echo "Building image: $FULL_IMAGE_URI"
-            
+          
           docker build --no-cache -t $FULL_IMAGE_URI .
           docker tag $FULL_IMAGE_URI $LATEST_IMAGE_URI
-            
+          
           docker push $FULL_IMAGE_URI
           docker push $LATEST_IMAGE_URI
-            
-          echo "Push successful."
-     
-          echo "image_uri=$FULL_IMAGE_URI" >> $GITHUB_OUTPUT
 
+          echo "Push successful."
 
   deploy-with-terraform:
     name: Deploy to ECS via Terraform
