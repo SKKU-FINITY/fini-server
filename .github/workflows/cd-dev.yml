@@ -15,7 +15,7 @@ jobs:
     name: Build and Push to ECR
     runs-on: ubuntu-latest
     outputs:
-      image_uri: ${{ steps.set_outputs.outputs.image_uri }}
+      image_tag: ${{ steps.set_tag.outputs.docker_image_tag }}
 
     steps:
 #      - name: Discord Notification
@@ -71,23 +71,24 @@ jobs:
           export TZ=Asia/Seoul
           echo "docker_image_tag=$(date +'%Y%m%d-%H%M')" >> $GITHUB_OUTPUT
 
-      - name: Set Image URI Output
-        id: set_outputs
-        run: |
-          IMAGE_TAG="${{ steps.set_tag.outputs.docker_image_tag }}"
-          ECR_REGISTRY="${{ steps.login-ecr.outputs.registry }}"
-          ECR_REPOSITORY="${{ secrets.ECR_REPOSITORY }}"
-
-          echo "image_uri=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
       - name: Build, Tag, and Push image to Amazon ECR
         id: build-push
         env:
-          FULL_IMAGE_URI: ${{ steps.set_outputs.outputs.image_uri }}
-          LATEST_IMAGE_URI: ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY }}:latest
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ steps.set_tag.outputs.docker_image_tag }}
         run: |
-          set -e # 오류 발생 시 즉시 중단
-
+          set -e 
+          
+          if [ -z "$ECR_REPOSITORY" ]; then
+            echo "::error:: secrets.ECR_REPOSITORY is not set."
+            exit 1
+          fi
+          
+          FULL_IMAGE_URI="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          LATEST_IMAGE_URI="$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+          
           echo "Building image: $FULL_IMAGE_URI"
           
           docker build --no-cache -t $FULL_IMAGE_URI .
@@ -95,7 +96,7 @@ jobs:
           
           docker push $FULL_IMAGE_URI
           docker push $LATEST_IMAGE_URI
-
+          
           echo "Push successful."
 
   deploy-with-terraform:
@@ -146,7 +147,7 @@ jobs:
         id: apply
         run: |
           terraform apply -auto-approve \
-            -var="app_image_uri=${{ needs.build-and-push-to-ecr.outputs.image_uri }}"
+            -var="app_image_tag=${{ needs.build-and-push-to-ecr.outputs.image_tag }}"
         working-directory: ./terraform/app
 
 #      - name: Discord Notification
