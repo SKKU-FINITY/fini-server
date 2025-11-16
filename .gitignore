@@ -38,3 +38,17 @@ out/
 
 src/main/resources/.env
 .env
+# Terraform 민감 변수 파일
+*.tfvars
+*.tfvars.json
+
+# Terraform 상태 파일
+*.tfstate
+*.tfstate.backup
+
+# Terraform 로그 파일
+crash.log
+
+# Terraform 로컬 설정
+.terraform/
+.terraform.lock.hcl
