@@ -91,5 +91,5 @@ module "ecs" {
   secrets_manager_arn = var.secrets_manager_arn
   key_name = "fini-key-pair"
 
-  app_image_uri = var.app_image_uri
+  app_image_tag = var.app_image_tag
 }

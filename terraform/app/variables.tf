@@ -19,10 +19,10 @@ variable "route53_zone_name" {
   default     = "finiapp.tech"
 }
 
-variable "app_image_uri" {
-  description = "The specific image URI (tag) to deploy, passed from CI/CD."
+variable "app_image_tag" {
+  description = "The specific image tag (timestamp) to deploy, passed from CI/CD."
   type        = string
-  default     = null # CI/CD에서 값을 주지 않으면 null이 되어 모듈의 default(:latest)가 동작함
+  default     = "latest" # CI/CD가 아닌 로컬 apply 시 :latest를 사용
 }
 
 variable "my_ip" {}

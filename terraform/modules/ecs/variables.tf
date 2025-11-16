@@ -21,8 +21,9 @@ variable "secrets_manager_arn" {
   description = "AWS Secrets Manager ARN for app secrets"
   type        = string
 }
-variable "app_image_uri" {
-  description = "The image URI to deploy, passed from CI/CD"
+
+variable "app_image_tag" {
+  description = "The unique tag (timestamp) of the build."
   type        = string
-  default     = null
+  default     = "latest"
 }

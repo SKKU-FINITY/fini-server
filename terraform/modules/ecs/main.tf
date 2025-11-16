@@ -1,7 +1,8 @@
 locals {
-  # var.app_image_uri가 null이 아니면(CI/CD에서 값을 받으면) 그 값을 쓰고,
-  # null이면 (수동 apply 등) var.ecr_image_url에서 기본값을 조합합니다.
-  effective_image_uri = (var.app_image_uri != null && var.app_image_uri != "") ? var.app_image_uri : "${var.ecr_image_url}:latest"
+  # [수정] CI/CD에서 태그를 받으면 그 태그를 사용하고, 아니면 'latest'를 사용합니다.
+  effective_image_tag = (var.app_image_tag != null && var.app_image_tag != "latest" && var.app_image_tag != "") ? var.app_image_tag : "latest"
+
+  effective_image_uri = "${var.ecr_image_url}:${local.effective_image_tag}"
 }
 
 # 1. CloudWatch 로그 그룹 (참조되기 전에 정의)
