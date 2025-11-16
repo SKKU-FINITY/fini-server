@@ -80,4 +80,6 @@ module "ecs" {
   db_endpoint_url = data.terraform_remote_state.data.outputs.db_endpoint
   secrets_manager_arn = var.secrets_manager_arn
   key_name = "fini-key-pair"
+
+  app_image_uri = var.app_image_uri
 }
