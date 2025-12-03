@@ -28,7 +28,6 @@ resource "aws_cloudfront_origin_request_policy" "vercel_policy" {
         "Origin",
         "Referer",
         "User-Agent",
-        "Authorization",
         "Access-Control-Request-Method",
         "Access-Control-Request-Headers"
       ]
