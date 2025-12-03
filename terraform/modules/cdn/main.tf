@@ -80,7 +80,6 @@ resource "aws_cloudfront_distribution" "s3_distribution" {
     cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
     origin_request_policy_id = aws_cloudfront_origin_request_policy.vercel_policy.id
   }
-  }
 
   # 추가 캐시 동작 (/api/*)
   ordered_cache_behavior {
