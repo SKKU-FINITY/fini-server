@@ -11,6 +11,17 @@ import java.util.stream.Collectors;
 
 public class ProductConverter {
 
+    private static String cleanProductName(String rawName) {
+        if (rawName == null) {
+            return null;
+        }
+        // split 정규식을 사용하여 줄바꿈(\r 또는 \n)이 하나라도 있으면 기준으로 나눔
+        String[] parts = rawName.split("[\\r\\n]+");
+
+        // 첫 번째 부분(줄바꿈 앞부분)만 가져와서 공백 제거 후 반환
+        return parts[0].trim();
+    }
+
     /**
      * FSS API 응답(BaseInfo)을 SavingProduct 엔티티로 변환합니다. (DB 저장용)
      * @param baseInfo FSS API의 상품 기본 정보
@@ -22,7 +33,7 @@ public class ProductConverter {
                 .bank(bank)
                 .finCoNo(baseInfo.getFinCoNo())
                 .finPrdtCd(baseInfo.getFinPrdtCd())
-                .finPrdtNm(baseInfo.getFinPrdtNm())
+                .finPrdtNm(cleanProductName(baseInfo.getFinPrdtNm()))
                 .joinWay(baseInfo.getJoinWay())
                 .mtrtInt(baseInfo.getMtrtInt())
                 .spclCnd(baseInfo.getSpclCnd())
@@ -63,7 +74,7 @@ public class ProductConverter {
                 .bank(bank)
                 .finCoNo(baseInfo.getFinCoNo())
                 .finPrdtCd(baseInfo.getFinPrdtCd())
-                .finPrdtNm(baseInfo.getFinPrdtNm())
+                .finPrdtNm(cleanProductName(baseInfo.getFinPrdtNm()))
                 .joinWay(baseInfo.getJoinWay())
                 .mtrtInt(baseInfo.getMtrtInt())
                 .spclCnd(baseInfo.getSpclCnd())
@@ -94,15 +105,18 @@ public class ProductConverter {
 
     public static ProductResponseDTO.ProductListDTO toProductListDTO(SavingOption option) {
         SavingProduct product = option.getSavingProduct();
+        Double base = option.getIntrRate();
+        Double max = option.getIntrRate2() != null ? option.getIntrRate2() : base;
+
         return ProductResponseDTO.ProductListDTO.builder()
                 .productId(product.getSavingProductId())
-                .optionId(option.getSavingOptionId()) // [추가] 옵션 ID 추가
+                .optionId(option.getSavingOptionId())
                 .bankName(product.getBank().getKorCoNm())
                 .productName(product.getFinPrdtNm())
                 .rsrvTypeNm(option.getRsrvTypeNm())
                 .saveTerm(option.getSaveTrm())
-                .baseRate(option.getIntrRate())
-                .maxRate(option.getIntrRate2())
+                .baseRate(base)
+                .maxRate(max)
                 .build();
     }
 
@@ -111,40 +125,33 @@ public class ProductConverter {
      */
     public static ProductResponseDTO.ProductListDTO toProductListDTO(DepositOption option) {
         DepositProduct product = option.getDepositProduct();
+        Double base = option.getIntrRate();
+        Double max = option.getIntrRate2() != null ? option.getIntrRate2() : base;
+
         return ProductResponseDTO.ProductListDTO.builder()
                 .productId(product.getDepositProductId())
                 .optionId(option.getDepositOptionId()) // [추가] 옵션 ID 추가
                 .bankName(product.getBank().getKorCoNm())
                 .productName(product.getFinPrdtNm())
                 .saveTerm(option.getSaveTrm())
-                .baseRate(option.getIntrRate())
-                .maxRate(option.getIntrRate2())
+                .baseRate(base)
+                .maxRate(max)
                 .build();
     }
 
-    /**
-     * [기존 메서드] - 모든 옵션을 표시 (하위 호환성용)
-     */
-    public static ProductResponseDTO.ProductDetailDTO toSavingProductDetailDTO(SavingProduct product) {
-        return toSavingProductDetailDTO(product, product.getSavingOptions());
-    }
 
-    /**
-     * [신규 오버로딩 메서드] - 선택된 옵션 리스트만 DTO로 변환합니다.
-     */
-    public static ProductResponseDTO.ProductDetailDTO toSavingProductDetailDTO(SavingProduct product, List<SavingOption> options) {
-        // [수정] 매개변수로 받은 'options' 리스트를 사용
-        List<ProductResponseDTO.OptionDTO> optionDTOs = options.stream()
-                .map(option -> ProductResponseDTO.OptionDTO.builder()
-                        .interestType(option.getIntrRateTypeNm())
-                        .reserveType(option.getRsrvTypeNm())
-                        .saveTerm(option.getSaveTrm())
-                        .baseRate(option.getIntrRate())
-                        .maxRate(option.getIntrRate2())
-                        .build())
-                .collect(Collectors.toList());
+    public static ProductResponseDTO.ProductDetailDTO toSavingProductDetailDTO(
+            SavingProduct product,
+            SavingOption option,
+            List<ProductResponseDTO.SimilarProductDTO> similarProducts) {
+
+        // null check 및 보정
+        Double base = option.getIntrRate();
+        // 최대 금리가 없으면 기본 금리와 동일하게 설정
+        Double max = option.getIntrRate2() != null ? option.getIntrRate2() : base;
 
         return ProductResponseDTO.ProductDetailDTO.builder()
+                // --- 기본 정보 ---
                 .productId(product.getSavingProductId())
                 .bankName(product.getBank().getKorCoNm())
                 .productName(product.getFinPrdtNm())
@@ -155,30 +162,32 @@ public class ProductConverter {
                 .etcNote(product.getEtcNote())
                 .maxLimit(convertMaxLimit(product.getMaxLimit()))
                 .maturityInterestInfo(product.getMtrtInt())
-                .options(optionDTOs)
+
+                // --- [수정] 옵션 정보 직접 매핑 ---
+                .optionId(option.getSavingOptionId())
+                .interestType(option.getIntrRateTypeNm())
+                .reserveType(option.getRsrvTypeNm())
+                .saveTerm(option.getSaveTrm())
+                .baseRate(base)
+                .maxRate(max)
+
+                .similarProducts(similarProducts)
                 .build();
     }
 
-    public static ProductResponseDTO.ProductDetailDTO toDepositProductDetailDTO(DepositProduct product) {
-        // [수정] 모든 옵션을 포함하여 새 메서드 호출
-        return toDepositProductDetailDTO(product, product.getDepositOptions());
-    }
-
     /**
-     * [신규 오버로딩 메서드] - 선택된 옵션 리스트만 DTO로 변환합니다.
+     * [수정] 예금 상세 DTO 변환 (옵션 평탄화 적용)
      */
-    public static ProductResponseDTO.ProductDetailDTO toDepositProductDetailDTO(DepositProduct product, List<DepositOption> options) {
-        // [수정] 매개변수로 받은 'options' 리스트를 사용
-        List<ProductResponseDTO.OptionDTO> optionDTOs = options.stream()
-                .map(option -> ProductResponseDTO.OptionDTO.builder()
-                        .interestType(option.getIntrRateTypeNm())
-                        .saveTerm(option.getSaveTrm())
-                        .baseRate(option.getIntrRate())
-                        .maxRate(option.getIntrRate2())
-                        .build())
-                .collect(Collectors.toList());
+    public static ProductResponseDTO.ProductDetailDTO toDepositProductDetailDTO(
+            DepositProduct product,
+            DepositOption option,
+            List<ProductResponseDTO.SimilarProductDTO> similarProducts) {
+
+        Double base = option.getIntrRate();
+        Double max = option.getIntrRate2() != null ? option.getIntrRate2() : base;
 
         return ProductResponseDTO.ProductDetailDTO.builder()
+                // --- 기본 정보 ---
                 .productId(product.getDepositProductId())
                 .bankName(product.getBank().getKorCoNm())
                 .productName(product.getFinPrdtNm())
@@ -189,44 +198,36 @@ public class ProductConverter {
                 .etcNote(product.getEtcNote())
                 .maxLimit(convertMaxLimit(product.getMaxLimit()))
                 .maturityInterestInfo(product.getMtrtInt())
-                .options(optionDTOs) // [수정] 필터링된 옵션 리스트가 반영됨
+
+                // --- [수정] 옵션 정보 직접 매핑 ---
+                .optionId(option.getDepositOptionId())
+                .interestType(option.getIntrRateTypeNm())
+                // .reserveType() -> 예금은 적립방식 없음 (null)
+                .saveTerm(option.getSaveTrm())
+                .baseRate(base)
+                .maxRate(max)
+
+                .similarProducts(similarProducts)
                 .build();
     }
 
-    /**
-     * [추가] maxLimit(Long)을 가독성 있는 문자열로 변환합니다.
-     * null이면 "제한 없음", 숫자면 콤마(,)가 포함된 문자열(예: "1,000,000")로 변환합니다.
-     */
     private static String convertMaxLimit(Long maxLimit) {
         if (maxLimit == null) {
             return "제한 없음";
         }
-        // 숫자 포맷팅 (예: 1000000 -> "1,000,000")
         return NumberFormat.getInstance(Locale.KOREA).format(maxLimit);
     }
 
-    /**
-     * join_deny 코드를 가독성 있는 문자열로 변환합니다.
-     * (1:제한없음, 2:서민전용, 3:일부제한)
-     * @param joinDenyCode DB에 저장된 코드 (1, 2, 3)
-     * @return 변환된 문자열
-     */
     private static String convertJoinDeny(String joinDenyCode) {
         if (joinDenyCode == null) {
             return null;
         }
-
         switch (joinDenyCode) {
-            case "1":
-                return "제한없음";
-            case "2":
-                return "서민전용";
-            case "3":
-                return "일부제한";
-            default:
-                return joinDenyCode;
+            case "1": return "제한없음";
+            case "2": return "서민전용";
+            case "3": return "일부제한";
+            default: return joinDenyCode;
         }
     }
-
 
 }

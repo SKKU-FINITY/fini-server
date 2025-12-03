@@ -7,8 +7,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
+import java.util.Optional;
 
 public interface DepositProductRepository extends JpaRepository<DepositProduct, Long> {
+
+    Optional<DepositProduct> findByFinCoNoAndFinPrdtCd(String finCoNo, String finPrdtCd);
 
     // [추가 1] 배치 서비스(BatchRankingService)용: 페이징 + JOIN FETCH
     @Query(value = "SELECT dp FROM DepositProduct dp JOIN FETCH dp.bank b",

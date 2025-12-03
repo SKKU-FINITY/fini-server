@@ -22,7 +22,13 @@ public enum ErrorStatus implements BaseErrorCode {
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "AUTH4041", "해당 사용자를 찾을 수 없습니다."),
 
     PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, "PRODUCT4041", "해당 금융상품을 찾을 수 없습니다."),
-    PRODUCT_SYNC_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "PRODUCT5001", "금융상품 정보 동기화에 실패했습니다. 관리자에게 문의 바랍니다.");
+    PRODUCT_OPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "PRODUCT4042", "해당 상품 옵션을 찾을 수 없습니다."),
+    PRODUCT_SYNC_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "PRODUCT5001", "금융상품 정보 동기화에 실패했습니다. 관리자에게 문의 바랍니다."),
+
+    NAVER_API_ERROR(HttpStatus.BAD_GATEWAY, "POPULARITY5001", "네이버 검색 API 호출 중 오류가 발생했습니다."),
+    GEMINI_API_ERROR(HttpStatus.BAD_GATEWAY, "POPULARITY5002", "Gemini AI API 호출 중 오류가 발생했습니다."),
+    RANKING_UPDATE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "POPULARITY5003", "인기 순위 업데이트 배치 작업 중 오류가 발생했습니다.");
+
 
 
     private final HttpStatus httpStatus;

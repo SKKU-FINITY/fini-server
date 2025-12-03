@@ -1,12 +1,13 @@
 package finity.fini.service.Popularity;
 
-import finity.fini.domain.DepositProduct;
+import finity.fini.apiPayload.code.status.ErrorStatus;
+import finity.fini.apiPayload.exception.handler.PopularityHandler;
 import finity.fini.domain.ProductBase;
 import finity.fini.domain.ProductPopularity;
-import finity.fini.domain.SavingProduct;
 import finity.fini.dto.Popularity.NaverDataLabRequestDTO;
 import finity.fini.dto.Popularity.NaverDataLabResponseDTO;
 import finity.fini.dto.Popularity.NaverSearchDTO;
+import finity.fini.dto.Popularity.RankingTaskDTO;
 import finity.fini.repository.DepositProductRepository;
 import finity.fini.repository.ProductPopularityRepository;
 import finity.fini.repository.SavingProductRepository;
@@ -15,17 +16,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
-import org.springframework.scheduling.annotation.Scheduled; // [중요]
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -36,222 +38,275 @@ public class BatchRankingService {
     private final SavingProductRepository savingProductRepository;
     private final DepositProductRepository depositProductRepository;
     private final ProductPopularityRepository popularityRepository;
-    private final WebClient.Builder webClientBuilder; // (Bean으로 등록되어 있어야 함)
+    private final WebClient.Builder webClientBuilder;
 
     @Value("${naver.api.client-id}")
     private String naverClientId;
     @Value("${naver.api.client-secret}")
     private String naverClientSecret;
-    @Value("${gemini.api.key}") // [Gemini 키 주입]
+    @Value("${gemini.api.key}")
     private String geminiApiKey;
 
-    /**
-     * [수정] 페이징 + 병렬 스트림 방식으로 변경
-     */
-    @Scheduled(cron = "0 43 20 * * ?") // (오후 8시 43분)
-    @Transactional
+    @Scheduled(cron = "0 0 7 1 * *")
     public void updatePopularityRank() {
-        log.info("### V2 (Paging + Parallel) 배치 작업을 시작합니다. ###");
+        log.info("### (DTO + Parallel) 배치 작업을 시작합니다. ###");
 
-        // --- 1. 적금 상품 처리 (50개씩 페이징) ---
-        Pageable pageable = PageRequest.of(0, 50); // 0페이지, 50개 단위
-        Page<SavingProduct> savingPage;
+        try {
+            // 1. 적금 상품 처리
+            processProductPages(true);
 
-        do {
-            savingPage = savingProductRepository.findAll(pageable);
-            log.info("적금 상품 처리 중... Page {}/{}", savingPage.getNumber() + 1, savingPage.getTotalPages());
+            // 2. 예금 상품 처리
+            processProductPages(false);
 
-            // [속도 개선] 50개 상품을 병렬 스트림으로 동시 처리
-            savingPage.getContent().parallelStream().forEach(product -> {
-                processProduct((ProductBase) product); // 헬퍼 메서드 호출
-            });
+            log.info("### 배치 작업을 완료했습니다. ###");
 
-            pageable = savingPage.nextPageable(); // 다음 페이지
-
-        } while (savingPage.hasNext()); // 다음 페이지가 있으면 계속
-
-        // --- 2. 예금 상품 처리 (50개씩 페이징) ---
-        pageable = PageRequest.of(0, 50); // 0페이지, 50개 단위
-        Page<DepositProduct> depositPage;
-
-        do {
-            depositPage = depositProductRepository.findAll(pageable);
-            log.info("예금 상품 처리 중... Page {}/{}", depositPage.getNumber() + 1, depositPage.getTotalPages());
-
-            // [속도 개선] 50개 상품을 병렬 스트림으로 동시 처리
-            depositPage.getContent().parallelStream().forEach(product -> {
-                processProduct((ProductBase) product); // 헬퍼 메서드 호출
-            });
-
-            pageable = depositPage.nextPageable();
-
-        } while (depositPage.hasNext());
-
-        log.info("### V2 배치 작업을 완료했습니다. ###");
+        } catch (Exception e) {
+            log.error("배치 작업 중 치명적 오류 발생", e);
+            // 수동 실행 시 컨트롤러로 에러를 전파하기 위해 Custom Exception 발생
+            throw new PopularityHandler(ErrorStatus.RANKING_UPDATE_FAILED);
+        }
     }
 
-    /**
-     * [신규 헬퍼 메서드]
-     * 상품 1개를 받아서 API 호출 3번(뉴스, 데이터랩, Gemini) 및 DB 저장을 처리합니다.
-     * 이 메서드는 병렬 스트림에 의해 여러 스레드에서 동시에 호출됩니다.
-     */
-    private void processProduct(ProductBase product) {
-        String keyword = product.getBank().getKorCoNm() + " " + product.getFinPrdtNm();
+    private void processProductPages(boolean isSaving) {
+        int pageNumber = 0;
+        while (true) {
+            PageRequest pageRequest = PageRequest.of(pageNumber, 20);
+            Page<? extends ProductBase> page;
+
+            try {
+                if (isSaving) {
+                    page = savingProductRepository.findAll(pageRequest);
+                } else {
+                    page = depositProductRepository.findAll(pageRequest);
+                }
+            } catch (Exception e) {
+                log.error("DB 조회 중 오류 발생 (Page: {})", pageNumber, e);
+                throw new PopularityHandler(ErrorStatus.RANKING_UPDATE_FAILED);
+            }
+
+            log.info("{} 상품 처리 중... Page {}/{}", isSaving ? "적금" : "예금", page.getNumber() + 1, page.getTotalPages());
+
+            List<RankingTaskDTO> tasks = page.getContent().stream()
+                    .map(product -> RankingTaskDTO.builder()
+                            .productId(product.getProductId())
+                            .productType(product.getProductTypeEnum())
+                            .bankName(product.getBank().getKorCoNm()) // Lazy Loading 발생 (여기선 안전)
+                            .productName(product.getFinPrdtNm())
+                            .specialCondition(product.getSpclCnd())
+                            .build())
+                    .toList();
+
+            for (RankingTaskDTO task : tasks) {
+                processTask(task);
+
+                // [중요 수정] API 호출 간 딜레이 추가 (Gemini/Naver 제한 방지)
+                try {
+                    Thread.sleep(6000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+
+            if (!page.hasNext()) break;
+            pageNumber++;
+        }
+    }
+
+    private void processTask(RankingTaskDTO task) {
+        String keyword = task.getBankName() + " " + task.getProductName();
         try {
-            // 1. [Naver 뉴스 API] (랭킹 점수 + RAG 스니펫 확보)
+            // 1. Naver 뉴스 API
             NaverSearchDTO newsResult = callNaverNewsApi(keyword);
             int newsCount = (newsResult.getTotal() != null) ? newsResult.getTotal() : 0;
             List<String> newsSnippets = newsResult.getItems().stream()
                     .map(NaverSearchDTO.Item::getDescription)
-                    .limit(3) // RAG에 사용할 뉴스 3개
+                    .limit(3)
                     .toList();
 
-            // 2. [Naver DataLab API] (랭킹 점수)
+            // 2. Naver DataLab API
             double searchScore = callNaverDataLabApi(keyword);
 
-            // 3. [최종 점수 계산] (가중치 조절 가능)
+            // 3. 최종 점수 계산
             double finalScore = (searchScore * 1.0) + (newsCount * 0.5);
 
-            // 4. [RAG] AI 요약 멘트 생성
-            String productInfo = "우대조건: " + product.getSpclCnd();
-            String prompt = buildPrompt(product.getFinPrdtNm(), productInfo, newsSnippets);
-            String aiSummary = callGeminiApi(prompt);
+            // 4. Gemini API (RAG)
+            String aiSummary = null;
+            try {
+                String productInfo = "우대조건: " + task.getSpecialCondition();
+                String prompt = buildPrompt(productInfo, newsSnippets);
+                aiSummary = callGeminiApiWithRetry(prompt);
+            } catch (PopularityHandler e) {
+                // [수정 2] 실패 시 기본 멘트로 덮어쓰지 않고, 로그만 남김 (aiSummary는 null 상태 유지)
+                log.warn("Gemini 요약 실패 (상품: {}) - 기존 요약을 유지하거나 생성을 건너뜁니다.", task.getProductName());
+            }
 
-            // 5. [DB 저장]
-            ProductPopularity pop = ProductPopularity.builder()
-                    .productId(product.getProductId())
-                    .productType(product.getProductTypeEnum())
-                    .popularityScore(finalScore)
-                    .aiSummary(aiSummary) // AI 요약 멘트 저장
-                    .build();
-            popularityRepository.save(pop);
+            // 5. DB 저장
+            savePopularity(task, finalScore, aiSummary);
 
-            // [속도 개선] 불필요한 0.1초 대기 삭제!
-             Thread.sleep(100);
 
         } catch (Exception e) {
             log.error("상품 랭킹 업데이트 실패: {} - {}", keyword, e.getMessage());
         }
     }
 
-    /**
-     * [수정] Naver 뉴스 API (뉴스 스니펫도 가져오도록 display=5)
-     */
-    private NaverSearchDTO callNaverNewsApi(String keyword) {
-        WebClient webClient = webClientBuilder.baseUrl("https://openapi.naver.com").build();
-        return webClient.get()
-                .uri(uriBuilder -> uriBuilder.path("/v1/search/news.json")
-                        .queryParam("query", keyword)
-                        .queryParam("display", 5) // RAG를 위해 5개 정도 가져옴
-                        .build())
-                .header("X-Naver-Client-Id", naverClientId)
-                .header("X-Naver-Client-Secret", naverClientSecret)
-                .retrieve()
-                .bodyToMono(NaverSearchDTO.class)
-                .block();
-    }
+    @Transactional
+    protected void savePopularity(RankingTaskDTO task, double score, String aiSummary) {
+        // 1. 기존 데이터 조회
+        Optional<ProductPopularity> existingPop = popularityRepository.findByProductIdAndProductType(task.getProductId(), task.getProductType());
 
-    /**
-     * [신규] Naver DataLab API (POST)
-     */
-    private double callNaverDataLabApi(String keyword) {
-        WebClient webClient = webClientBuilder.baseUrl("https://openapi.naver.com").build();
+        if (existingPop.isPresent()) {
 
-        // 최근 30일간 검색량 조회
-        String endDate = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
-        String startDate = LocalDate.now().minusDays(30).format(DateTimeFormatter.ISO_LOCAL_DATE);
+            existingPop.get().updateData(score, aiSummary);
 
-        NaverDataLabRequestDTO requestBody = NaverDataLabRequestDTO.builder()
-                .startDate(startDate)
-                .endDate(endDate)
-                .timeUnit("date")
-                .keywordGroups(List.of(
-                        NaverDataLabRequestDTO.KeywordGroup.builder()
-                                .groupName(keyword)
-                                .keywords(List.of(keyword))
-                                .build()
-                ))
-                .build();
-
-        NaverDataLabResponseDTO response = webClient.post()
-                .uri("/datalab/search")
-                .header("X-Naver-Client-Id", naverClientId)
-                .header("X-Naver-Client-Secret", naverClientSecret)
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(requestBody) // DTO를 JSON 바디에 실어 보냄
-                .retrieve()
-                .bodyToMono(NaverDataLabResponseDTO.class)
-                .block();
-
-        // 30일간의 검색량(ratio)을 모두 합산하여 점수화
-        if (response != null && response.getResults() != null && !response.getResults().isEmpty()) {
-            return response.getResults().get(0).getData().stream()
-                    .mapToDouble(NaverDataLabResponseDTO.Data::getRatio)
-                    .sum();
+            popularityRepository.save(existingPop.get());
+        } else {
+            // 3. 없으면 -> 새로 생성 (ID는 자동 생성이므로 설정 필요 없음)
+            ProductPopularity newPop = ProductPopularity.builder()
+                    .productId(task.getProductId())
+                    .productType(task.getProductType())
+                    .popularityScore(score)
+                    .aiSummary(aiSummary)
+                    .build();
+            popularityRepository.save(newPop);
         }
-        return 0.0;
     }
 
-    /**
-     * [신규] RAG 프롬프트 빌더
-     */
-    private String buildPrompt(String productName, String productInfo, List<String> newsSnippets) {
-        String newsText = newsSnippets.stream()
-                .map(s -> "- " + s.replaceAll("<[^>]*>", "")) // HTML 태그 제거
-                .collect(Collectors.joining("\n"));
 
-        return String.format(
-                """
-                당신은 사용자의 쉬운 이해를 돕는 친절한 금융 상품 캐스터입니다.
-                다음 [상품 정보]와 [최신 뉴스 동향]을 바탕으로, 이 상품이 왜 인기 있는지 또는 왜 주목해야 하는지 1~2줄의 매력적인 추천 멘트를 생성해 주세요.
-                
-                [상품 정보]
-                - 상품명: %s
-                - %s
-                
-                [최신 뉴스 동향]
-                %s
-                
-                추천 멘트:
-                """, productName, productInfo, newsText.isBlank() ? "최신 뉴스 없음" : newsText
-        );
+    private NaverSearchDTO callNaverNewsApi(String keyword) {
+        try {
+            WebClient webClient = webClientBuilder.baseUrl("https://openapi.naver.com").build();
+            return webClient.get()
+                    .uri(uriBuilder -> uriBuilder.path("/v1/search/news.json")
+                            .queryParam("query", keyword)
+                            .queryParam("display", 5)
+                            .build())
+                    .header("X-Naver-Client-Id", naverClientId)
+                    .header("X-Naver-Client-Secret", naverClientSecret)
+                    .retrieve()
+                    .bodyToMono(NaverSearchDTO.class)
+                    .block();
+        } catch (Exception e) {
+            log.warn("Naver 뉴스 API 호출 실패: {}", keyword, e);
+            // 필수 데이터이므로 예외를 던져서 Ranking 로직에서 제외시킴
+            throw new PopularityHandler(ErrorStatus.NAVER_API_ERROR);
+        }
     }
 
-    /**
-     * [신규] Gemini API 호출
-     */
-    private String callGeminiApi(String prompt) {
+    private double callNaverDataLabApi(String keyword) {
+        try {
+            WebClient webClient = webClientBuilder.baseUrl("https://openapi.naver.com").build();
+            String endDate = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
+            String startDate = LocalDate.now().minusDays(30).format(DateTimeFormatter.ISO_LOCAL_DATE);
+
+            NaverDataLabRequestDTO requestBody = NaverDataLabRequestDTO.builder()
+                    .startDate(startDate)
+                    .endDate(endDate)
+                    .timeUnit("date")
+                    .keywordGroups(List.of(
+                            NaverDataLabRequestDTO.KeywordGroup.builder()
+                                    .groupName(keyword)
+                                    .keywords(List.of(keyword))
+                                    .build()
+                    ))
+                    .build();
+
+            NaverDataLabResponseDTO response = webClient.post()
+                    .uri("/datalab/search")
+                    .header("X-Naver-Client-Id", naverClientId)
+                    .header("X-Naver-Client-Secret", naverClientSecret)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(NaverDataLabResponseDTO.class)
+                    .block();
+
+            if (response != null && response.getResults() != null && !response.getResults().isEmpty()) {
+                return response.getResults().get(0).getData().stream()
+                        .mapToDouble(NaverDataLabResponseDTO.Data::getRatio)
+                        .sum();
+            }
+            return 0.0; // 검색 결과 없으면 0점 (정상 케이스)
+
+        } catch (WebClientResponseException e) {
+            log.warn("Naver 데이터랩 API 호출 실패: {}", keyword, e);
+            throw new PopularityHandler(ErrorStatus.NAVER_API_ERROR);
+        } catch (Exception e) {
+            log.warn("Naver 데이터랩 알 수 없는 오류", e);
+            throw new PopularityHandler(ErrorStatus.NAVER_API_ERROR);
+        }
+    }
+
+    private String callGeminiApiWithRetry(String prompt) {
+        int maxRetries = 3;
+        int retryDelay = 5000;
+
+        for (int i = 0; i < maxRetries; i++) {
+            try {
+                return callGeminiApiInternal(prompt);
+            } catch (WebClientResponseException e) {
+                if (e.getStatusCode().value() == 429 || e.getStatusCode().value() == 503) {
+                    log.warn("Gemini API 과부하 ({}). 재시도 {}/{}", e.getStatusCode(), i + 1, maxRetries);
+                    try {
+                        Thread.sleep(retryDelay);
+                        retryDelay += 3000;
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new PopularityHandler(ErrorStatus.GEMINI_API_ERROR);
+                    }
+                } else {
+                    // 400 등 다른 에러는 재시도 없이 즉시 실패
+                    throw new PopularityHandler(ErrorStatus.GEMINI_API_ERROR);
+                }
+            } catch (Exception e) {
+                log.error("Gemini 호출 중 알 수 없는 오류", e);
+                throw new PopularityHandler(ErrorStatus.GEMINI_API_ERROR);
+            }
+        }
+        // 재시도 횟수 초과
+        throw new PopularityHandler(ErrorStatus.GEMINI_API_ERROR);
+    }
+
+    private String callGeminiApiInternal(String prompt) {
         WebClient webClient = webClientBuilder.baseUrl("https://generativelanguage.googleapis.com").build();
+        String url = "/v1beta/models/gemini-2.0-flash:generateContent?key=" + geminiApiKey;
 
-        String url = "/v1beta/models/gemini-2.5-flash:generateContent?key=" + geminiApiKey;
-
-        // Gemini API 요청 바디 (간단한 Map 사용)
         Map<String, Object> requestBody = Map.of(
-                "contents", List.of(
-                        Map.of("parts", List.of(
-                                Map.of("text", prompt)
-                        ))
-                )
+                "contents", List.of(Map.of("parts", List.of(Map.of("text", prompt))))
         );
 
-        // Gemini API 응답 파싱 (Map 사용)
         Map<String, Object> response = webClient.post()
                 .uri(url)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(requestBody)
                 .retrieve()
-                .bodyToMono(Map.class) // Map으로 받음
+                .bodyToMono(Map.class)
                 .block();
 
-        // Map에서 텍스트 결과 파싱 (매우 복잡한 구조)
         try {
             List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.get("candidates");
             Map<String, Object> content = (Map<String, Object>) candidates.get(0).get("content");
             List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
-            return (String) parts.get(0).get("text");
+            String text = (String) parts.get(0).get("text");
+            return text != null ? text.trim() : "정보 없음";
         } catch (Exception e) {
-            log.error("Gemini 응답 파싱 실패", e);
-            return "추천 정보를 생성 중입니다.";
+            throw new RuntimeException("Parsing Error");
         }
     }
+
+
+    private String buildPrompt(String productInfo, List<String> newsSnippets) {
+        String newsText = newsSnippets.stream()
+                .map(s -> "- " + s.replaceAll("<[^>]*>", ""))
+                .collect(Collectors.joining(" "));
+
+        return String.format(
+            """
+            금융 상품의 우대조건과 관련 뉴스를 보고, 이 상품의 핵심 혜택을 **25자 이내로 짧게** 소개해줘.
+            [우대조건]: %s
+            [뉴스 키워드]: %s
+            조건: 상품명과 금리 수치는 절대 포함하지 마, 25자 이내로 작성하고 우대조건의 핵심만 언급해. '~시 유리합니다' 또는 '~에 적합합니다' 형태로 작성해. "**" 같은 마크다운 언어는 절대 쓰지마.
+            요약:""", productInfo, newsText.isBlank() ? "없음" : newsText
+        );
+    }
+
 }

@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/recommendations") // [경로 분리]
+@RequestMapping("/api/recommendations")
 @RequiredArgsConstructor
 @Tag(name = "Popularity", description = "인기 상품 추천 API")
 public class PopularityController {
@@ -35,19 +35,19 @@ public class PopularityController {
         return ApiResponse.onSuccess(productList);
     }
 
-    @GetMapping("/savings/compare/{productId}") // [경로 변경]
-    @Operation(summary = "적금 비교 추천 API", description = "현재 상품을 제외한 적금 상품들을 인기도 내림차순으로 조회합니다.")
-    public ApiResponse<List<ProductResponseDTO.PopularProductDTO>> getSavingProductComparisons(
-            @PathVariable Long productId) {
-        List<ProductResponseDTO.PopularProductDTO> productList = popularityService.findSavingProductComparisons(productId);
-        return ApiResponse.onSuccess(productList);
-    }
+//    @GetMapping("/savings/compare/{productId}") // [경로 변경]
+//    @Operation(summary = "적금 비교 추천 API", description = "현재 상품을 제외한 적금 상품들을 인기도 내림차순으로 조회합니다.")
+//    public ApiResponse<List<ProductResponseDTO.PopularProductDTO>> getSavingProductComparisons(
+//            @PathVariable Long productId) {
+//        List<ProductResponseDTO.PopularProductDTO> productList = popularityService.findSavingProductComparisons(productId);
+//        return ApiResponse.onSuccess(productList);
+//    }
 
-    @GetMapping("/deposits/compare/{productId}") // [경로 변경]
-    @Operation(summary = "예금 비교 추천 API", description = "현재 상품을 제외한 예금 상품들을 인기도 내림차순으로 조회합니다.")
-    public ApiResponse<List<ProductResponseDTO.PopularProductDTO>> getDepositProductComparisons(
-            @PathVariable Long productId) {
-        List<ProductResponseDTO.PopularProductDTO> productList = popularityService.findDepositProductComparisons(productId);
-        return ApiResponse.onSuccess(productList);
-    }
+//    @GetMapping("/deposits/compare/{productId}") // [경로 변경]
+//    @Operation(summary = "예금 비교 추천 API", description = "현재 상품을 제외한 예금 상품들을 인기도 내림차순으로 조회합니다.")
+//    public ApiResponse<List<ProductResponseDTO.PopularProductDTO>> getDepositProductComparisons(
+//            @PathVariable Long productId) {
+//        List<ProductResponseDTO.PopularProductDTO> productList = popularityService.findDepositProductComparisons(productId);
+//        return ApiResponse.onSuccess(productList);
+//    }
 }

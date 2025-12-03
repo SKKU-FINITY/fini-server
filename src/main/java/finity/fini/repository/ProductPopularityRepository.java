@@ -18,4 +18,5 @@ public interface ProductPopularityRepository extends JpaRepository<ProductPopula
             ProductPopularity.ProductType type,
             Long productId
     );
+
 }

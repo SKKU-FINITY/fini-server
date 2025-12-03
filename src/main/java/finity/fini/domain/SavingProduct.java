@@ -9,6 +9,7 @@ import java.util.List;
 
 @Entity
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -56,7 +57,8 @@ public class SavingProduct extends BaseEntity implements ProductBase{
 
     // Initialize the list using @Builder.Default
     @Builder.Default
-    @OneToMany(mappedBy = "savingProduct", cascade = CascadeType.ALL)
+    // [수정] orphanRemoval = true 추가: 리스트에서 제거되면 DB에서도 삭제됨 (중복 방지 핵심)
+    @OneToMany(mappedBy = "savingProduct", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SavingOption> savingOptions = new ArrayList<>();
 
     @Override

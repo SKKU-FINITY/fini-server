@@ -29,7 +29,19 @@ public class ProductPopularity extends BaseEntity {
     private Double popularityScore; // Naver API로 계산한 최종 인기 점수
 
     @Column(columnDefinition = "TEXT")
-    private String aiSummary; // [AI 요약 멘트 필드 다시 추가]
+    private String aiSummary;
 
     public enum ProductType { SAVING, DEPOSIT }
+
+    public void updateData(Double popularityScore, String aiSummary) {
+        this.popularityScore = popularityScore;
+        // aiSummary가 null이 아닐 때만 업데이트 (기존 요약 유지 등 정책에 따라 조정 가능)
+        if (aiSummary != null) {
+            this.aiSummary = aiSummary;
+        }
+    }
+
+    public void updateAiSummary(String aiSummary) {
+        this.aiSummary = aiSummary;
+    }
 }

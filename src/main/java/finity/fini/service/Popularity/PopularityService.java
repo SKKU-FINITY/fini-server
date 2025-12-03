@@ -8,23 +8,11 @@ import java.util.List;
  */
 public interface PopularityService {
 
-    /**
-     * 첫 화면: 외부 인기순(Naver) 상위 5개 적금 상품 조회
-     */
     List<ProductResponseDTO.PopularProductDTO> findPopularSavingProducts();
 
-    /**
-     * 첫 화면: 외부 인기순(Naver) 상위 5개 예금 상품 조회
-     */
     List<ProductResponseDTO.PopularProductDTO> findPopularDepositProducts();
 
-    /**
-     * 비교 추천: 현재 상품을 제외한 인기 상위 5개 적금 상품 조회
-     */
     List<ProductResponseDTO.PopularProductDTO> findSavingProductComparisons(Long currentProductId);
 
-    /**
-     * 비교 추천: 현재 상품을 제외한 인기 상위 5개 예금 상품 조회
-     */
     List<ProductResponseDTO.PopularProductDTO> findDepositProductComparisons(Long currentProductId);
 }
