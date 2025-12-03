@@ -15,6 +15,7 @@ public class ProductResponseDTO {
     // 상품 목록 조회 응답 DTO
     @Builder
     @Getter
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class ProductListDTO {
         private Long productId;
         private Long optionId;
@@ -29,6 +30,7 @@ public class ProductResponseDTO {
     // 상품 상세 조회 응답 DTO
     @Builder
     @Getter
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class ProductDetailDTO {
         private Long productId;
         private String bankName;
@@ -40,25 +42,33 @@ public class ProductResponseDTO {
         private String etcNote;             // 기타 유의사항
         private String maxLimit;            // 최고 한도
         private String maturityInterestInfo;// 만기 후 이자율
-        private List<OptionDTO> options;
+
+        private Long optionId;
+        private String interestType; // 이자 계산 방식 (단리/복리)
+        private String reserveType;  // 적립 방식 (자유적립/정액적립 - 적금용)
+        private Integer saveTerm;    // 저축 기간
+        private Double baseRate;     // 기본 금리
+        private Double maxRate;      // 최고 우대 금리
+
+        private List<SimilarProductDTO> similarProducts;
     }
 
-    // [수정됨] 상세 조회 및 인기 상품 목록에서 공통으로 사용할 OptionDTO
     @Builder
     @Getter
-    @NoArgsConstructor  // [추가] from() 메서드의 .builder() 사용을 위해
-    @AllArgsConstructor // [추가] from() 메서드의 .builder() 사용을 위해
+    @NoArgsConstructor
+    @AllArgsConstructor
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class OptionDTO {
+        private Long optionId;
         private String interestType; // 단리/복리 (Deposit)
         private String reserveType;  // 적립방식 (Saving)
         private Integer saveTerm;    // 저축 기간 (DTO 필드명)
         private Double baseRate;     // 저축 금리 (DTO 필드명)
         private Double maxRate;      // 최고 우대 금리 (DTO 필드명)
 
-        // [신규 추가] SavingOption -> DTO 변환 팩토리 메서드
         public static OptionDTO from(SavingOption opt) {
             return OptionDTO.builder()
+                    .optionId(opt.getSavingOptionId())
                     .reserveType(opt.getRsrvTypeNm())     // DTO.reserveType <- Entity.rsrvTypeNm
                     .saveTerm(opt.getSaveTrm())       // DTO.saveTerm <- Entity.saveTrm
                     .baseRate(opt.getIntrRate())      // DTO.baseRate <- Entity.intrRate
@@ -66,15 +76,36 @@ public class ProductResponseDTO {
                     .build();
         }
 
-        // [신규 추가] DepositOption -> DTO 변환 팩토리 메서드
         public static OptionDTO from(DepositOption opt) {
             return OptionDTO.builder()
+                    .optionId(opt.getDepositOptionId())
                     .interestType(opt.getIntrRateTypeNm()) // DTO.interestType <- Entity.intrRateTypeNm
                     .saveTerm(opt.getSaveTrm())        // DTO.saveTerm <- Entity.saveTrm
                     .baseRate(opt.getIntrRate())       // DTO.baseRate <- Entity.intrRate
                     .maxRate(opt.getIntrRate2())       // DTO.maxRate <- Entity.intrRate2
                     .build();
         }
+    }
+
+    @Builder
+    @Getter
+    public static class SimilarProductDTO {
+        private Long productId;
+        private Long optionId;
+        private String bankName;
+        private String productName;
+
+        // 이자 유형 (단리/복리)
+        private String interestType;
+
+        //  적립 방식 (자유적립/정액적립) - 예금은 null이므로 제외
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private String reserveType;
+
+        private Long maxLimitDiff;   // 금액 차이 (Long)
+        private Integer termDiff;    // 개월 차이 (Integer)
+        private Double baseRateDiff; // 기본 금리 차이 (Double)
+        private Double maxRateDiff;  // 최대 금리 차이 (Double)
     }
 
     @Getter
@@ -85,8 +116,7 @@ public class ProductResponseDTO {
         private String productName;
         private String aiSummary;
         private Double maxRate;     // 대표 최고 금리
-        private List<OptionDTO> options; // [수정] 이제 위의 통합 OptionDTO를 사용합니다.
+        private List<OptionDTO> options;
     }
 
-    // [삭제] 중복되었던 두 번째 OptionDTO 클래스가 삭제되었습니다.
 }

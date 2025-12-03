@@ -7,8 +7,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
+import java.util.Optional;
 
 public interface SavingProductRepository extends JpaRepository<SavingProduct, Long> {
+
+    Optional<SavingProduct> findByFinCoNoAndFinPrdtCd(String finCoNo, String finPrdtCd);
 
     // [추가 1] 배치 서비스(BatchRankingService)용: 페이징 + JOIN FETCH
     @Query(value = "SELECT sp FROM SavingProduct sp JOIN FETCH sp.bank b",

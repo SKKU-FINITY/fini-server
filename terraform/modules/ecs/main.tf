@@ -1,7 +1,6 @@
 locals {
   # [수정] CI/CD에서 태그를 받으면 그 태그를 사용하고, 아니면 'latest'를 사용합니다.
   effective_image_tag = (var.app_image_tag != null && var.app_image_tag != "latest" && var.app_image_tag != "") ? var.app_image_tag : "latest"
-
   effective_image_uri = "${var.ecr_image_url}:${local.effective_image_tag}"
 }
 

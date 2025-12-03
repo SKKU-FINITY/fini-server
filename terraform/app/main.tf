@@ -8,7 +8,7 @@ terraform {
 
   backend "s3" {
     bucket = "fini-app-bucket" # 1번에서 만든 버킷 이름
-    key = "app/terraform.tfstate"      # ★★★ 각 모듈별로 경로를 다르게 설정! (예: "network/terraform.tfstate")
+    key = "app/terraform.tfstate" 
     region = "ap-northeast-2"
   }
 }
