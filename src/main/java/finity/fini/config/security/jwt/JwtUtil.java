@@ -15,10 +15,14 @@ import java.util.Date;
 public class JwtUtil {
 
     private final Key secretKey;
-    private final long validityInMilliseconds = 3600000; // 1시간
+    private final long validityInMilliseconds;
 
-    public JwtUtil(@Value("${jwt.secret}") String secret) {
+    public JwtUtil(
+            @Value("${jwt.secret}") String secret,
+            @Value("${jwt.access-token-validity-in-seconds}") long validityInSeconds)
+    {
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.validityInMilliseconds = validityInSeconds * 1000;
     }
 
     // 토큰 생성
@@ -46,7 +50,6 @@ public class JwtUtil {
             Jwts.parserBuilder().setSigningKey(secretKey).build().parseClaimsJws(token);
             return true;
         } catch (Exception e) {
-            // MalformedJwtException, ExpiredJwtException 등
             return false;
         }
     }
